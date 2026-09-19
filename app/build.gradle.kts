@@ -59,6 +59,7 @@ dependencies {
     implementation(project(":search"))
     implementation(project(":settings"))
     implementation(project(":files"))
+    implementation(project(":llm"))
 
     // Compose
     val composeBom = platform("androidx.compose:compose-bom:2024.12.01")

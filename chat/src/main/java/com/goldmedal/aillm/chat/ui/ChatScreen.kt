@@ -16,8 +16,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Menu
@@ -45,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.goldmedal.aillm.chat.viewmodel.ChatViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,6 +55,7 @@ fun ChatScreen(
     val isGenerating by viewModel.isGenerating.collectAsState()
     val attachedImage by viewModel.attachedImage.collectAsState()
     val error by viewModel.error.collectAsState()
+    val modelStatus by viewModel.modelStatus.collectAsState()
 
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
@@ -77,13 +77,20 @@ fun ChatScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("AI Assistant") },
+                title = {
+                    Column {
+                        Text("AI Assistant")
+                        Text(
+                            text = modelStatus,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (modelStatus == "Ready") MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onMenuClick) {
-                        Icon(
-                            imageVector = Icons.Default.Menu,
-                            contentDescription = "Menu"
-                        )
+                        Icon(Icons.Default.Menu, contentDescription = "Menu")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -117,9 +124,7 @@ fun ChatScreen(
                                 .padding(16.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp)
-                            )
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
                         }
                     }
                 }
@@ -152,15 +157,11 @@ fun ChatScreen(
                             .size(100.dp)
                             .align(Alignment.CenterStart)
                     )
-
                     IconButton(
                         onClick = { viewModel.removeAttachedImage() },
                         modifier = Modifier.align(Alignment.TopEnd)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Remove image"
-                        )
+                        Icon(Icons.Default.Close, contentDescription = "Remove image")
                     }
                 }
             }
@@ -172,13 +173,8 @@ fun ChatScreen(
                     .padding(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(
-                    onClick = { imagePickerLauncher.launch("image/*") }
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Image,
-                        contentDescription = "Attach image"
-                    )
+                IconButton(onClick = { imagePickerLauncher.launch("image/*") }) {
+                    Icon(Icons.Default.Image, contentDescription = "Attach image")
                 }
 
                 OutlinedTextField(
@@ -200,10 +196,7 @@ fun ChatScreen(
                     },
                     enabled = inputText.isNotBlank() && !isGenerating
                 ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.Send,
-                        contentDescription = "Send"
-                    )
+                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
                 }
             }
         }

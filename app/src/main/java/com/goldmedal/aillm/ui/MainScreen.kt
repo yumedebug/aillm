@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -13,8 +15,6 @@ import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.NavigationDrawerItemDefaults
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -25,11 +25,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.goldmedal.aillm.chat.ui.ChatScreen
+import com.goldmedal.aillm.files.ui.FileScreen
+import com.goldmedal.aillm.memory.ui.MemoryScreen
 import com.goldmedal.aillm.settings.ui.SettingsScreen
 import kotlinx.coroutines.launch
 
 sealed class Screen(val route: String, val title: String, val icon: ImageVector) {
     data object Chat : Screen("chat", "Chat", Icons.Default.Chat)
+    data object Memory : Screen("memory", "Memory", Icons.Default.Memory)
+    data object Files : Screen("files", "Files", Icons.Default.Folder)
     data object Settings : Screen("settings", "Settings", Icons.Default.Settings)
 }
 
@@ -68,11 +72,14 @@ fun MainScreen() {
             Screen.Chat -> ChatScreen(
                 onMenuClick = { scope.launch { drawerState.open() } }
             )
+            Screen.Memory -> MemoryScreen(
+                onBackClick = { currentScreen = Screen.Chat }
+            )
+            Screen.Files -> FileScreen(
+                onBackClick = { currentScreen = Screen.Chat }
+            )
             Screen.Settings -> SettingsScreen(
-                onBackClick = {
-                    currentScreen = Screen.Chat
-                    scope.launch { drawerState.open() }
-                }
+                onBackClick = { currentScreen = Screen.Chat }
             )
         }
     }
