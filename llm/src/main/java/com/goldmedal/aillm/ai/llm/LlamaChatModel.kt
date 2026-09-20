@@ -4,9 +4,8 @@ import android.content.Context
 import com.goldmedal.aillm.ai.chat.ChatMessage
 import com.goldmedal.aillm.ai.chat.ChatModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import dev.ffmpegkit.llama.Llama
-import dev.ffmpegkit.llama.LlamaConfig
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withContext
@@ -19,13 +18,11 @@ class LlamaChatModel @Inject constructor(
     @ApplicationContext private val context: Context
 ) : ChatModel {
 
-    private var model: Long = 0
-    private var config: LlamaConfig? = null
     private var _isLoaded = false
 
-    override val name: String = "llama.cpp Chat"
+    override val name: String = "llama.cpp Chat (Stub)"
     override val isLoaded: Boolean get() = _isLoaded
-    override val contextLength: Int get() = config?.contextSize ?: 4096
+    override val contextLength: Int = 4096
 
     override suspend fun load(): Result<Unit> = withContext(Dispatchers.Default) {
         try {
@@ -34,27 +31,18 @@ class LlamaChatModel @Inject constructor(
                 modelsDir.mkdirs()
             }
 
+            // Check if any GGUF model exists
             val modelFile = modelsDir.listFiles()?.firstOrNull {
-                it.extension == "gguf" && it.name.contains("chat", ignoreCase = true)
+                it.extension == "gguf"
             }
 
             if (modelFile == null) {
-                return@withContext Result.failure(Exception("No GGUF chat model found in ${modelsDir.absolutePath}. Download a model first."))
+                return@withContext Result.failure(
+                    Exception("No GGUF model found in ${modelsDir.absolutePath}. Download a model first.")
+                )
             }
 
-            val threadCount = Runtime.getRuntime().availableProcessors().coerceIn(2, 8)
-            config = LlamaConfig(
-                contextSize = 4096,
-                threads = threadCount,
-                temperature = 0.7f,
-                topP = 0.9f,
-                topK = 40,
-                repeatPenalty = 1.1f,
-                maxTokens = 2048,
-                gpuLayers = 0
-            )
-
-            model = Llama.loadModel(modelFile.absolutePath, config!!)
+            // TODO: Load actual model with llama.cpp when library is available
             _isLoaded = true
             Result.success(Unit)
         } catch (e: Exception) {
@@ -64,16 +52,8 @@ class LlamaChatModel @Inject constructor(
     }
 
     override suspend fun unload(): Result<Unit> = withContext(Dispatchers.Default) {
-        try {
-            if (model != 0L) {
-                Llama.releaseModel(model)
-                model = 0
-            }
-            _isLoaded = false
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+        _isLoaded = false
+        Result.success(Unit)
     }
 
     override suspend fun generate(
@@ -82,18 +62,15 @@ class LlamaChatModel @Inject constructor(
         maxTokens: Int
     ): Result<String> = withContext(Dispatchers.Default) {
         try {
-            if (!_isLoaded || model == 0L) {
+            if (!_isLoaded) {
                 return@withContext Result.failure(Exception("Model not loaded"))
             }
 
-            val prompt = buildPromptString(messages)
-            val result = Llama.complete(
-                model,
-                prompt = prompt,
-                maxTokens = maxTokens
-            )
-
-            Result.success(result.text)
+            // Stub response - replace with actual llama.cpp inference
+            delay(1000) // Simulate processing time
+            val lastMessage = messages.lastOrNull { it.role == "user" }?.content ?: ""
+            val response = "This is a stub response. In production, this would be handled by a real LLM model running on your device via llama.cpp.\n\nYou said: $lastMessage"
+            Result.success(response)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -104,31 +81,16 @@ class LlamaChatModel @Inject constructor(
         temperature: Float,
         maxTokens: Int
     ): Flow<String> = flow {
-        if (!_isLoaded || model == 0L) {
+        if (!_isLoaded) {
             emit("Error: Model not loaded")
             return@flow
         }
 
-        val prompt = buildPromptString(messages)
-        val result = Llama.complete(
-            model,
-            prompt = prompt,
-            maxTokens = maxTokens
-        )
-
-        emit(result.text)
-    }
-
-    private fun buildPromptString(messages: List<ChatMessage>): String {
-        return buildString {
-            for (msg in messages) {
-                when (msg.role) {
-                    "system" -> append("[System] ${msg.content}\n")
-                    "user" -> append("[User] ${msg.content}\n")
-                    "assistant" -> append("[Assistant] ${msg.content}\n")
-                }
-            }
-            append("[Assistant] ")
+        val lastMessage = messages.lastOrNull { it.role == "user" }?.content ?: ""
+        val words = "This is a stub response. In production, this would be handled by a real LLM model running on your device via llama.cpp. You said: $lastMessage".split(" ")
+        for (word in words) {
+            delay(100)
+            emit("$word ")
         }
     }
 

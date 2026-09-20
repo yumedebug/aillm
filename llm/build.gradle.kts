@@ -29,7 +29,10 @@ dependencies {
     implementation(project(":core"))
     implementation(project(":ai"))
 
-    implementation("dev.ffmpegkit-maintained:llama-android:0.1.1")
+    // llama-android: add when available on Maven Central
+    // implementation("dev.ffmpegkit-maintained:llama-android:0.1.1")
+    // Alternative: build from source and include as local module
+    
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 
     implementation("com.google.dagger:hilt-android:2.59.2")

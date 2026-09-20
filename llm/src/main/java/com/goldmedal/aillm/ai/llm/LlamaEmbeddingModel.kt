@@ -3,8 +3,6 @@ package com.goldmedal.aillm.ai.llm
 import android.content.Context
 import com.goldmedal.aillm.memory.embedding.EmbeddingModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import dev.ffmpegkit.llama.Llama
-import dev.ffmpegkit.llama.LlamaConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -16,25 +14,14 @@ class LlamaEmbeddingModel @Inject constructor(
     @ApplicationContext private val context: Context
 ) : EmbeddingModel {
 
-    private var model: Long = 0
     private var _isLoaded = false
 
-    override val name: String = "llama.cpp Embedding"
+    override val name: String = "llama.cpp Embedding (Stub)"
     override val isLoaded: Boolean get() = _isLoaded
 
     override suspend fun load(): Result<Unit> = withContext(Dispatchers.Default) {
         try {
-            val modelsDir = File(context.getExternalFilesDir(null), "models")
-            val embeddingFile = modelsDir.listFiles()?.firstOrNull {
-                it.extension == "gguf" && it.name.contains("embed", ignoreCase = true)
-            }
-
-            if (embeddingFile == null) {
-                return@withContext Result.failure(Exception("No embedding model found"))
-            }
-
-            val config = LlamaConfig(contextSize = 512, threads = 4)
-            model = Llama.loadModel(embeddingFile.absolutePath, config)
+            // TODO: Load actual embedding model with llama.cpp
             _isLoaded = true
             Result.success(Unit)
         } catch (e: Exception) {
@@ -44,25 +31,19 @@ class LlamaEmbeddingModel @Inject constructor(
     }
 
     override suspend fun unload(): Result<Unit> = withContext(Dispatchers.Default) {
-        try {
-            if (model != 0L) {
-                Llama.releaseModel(model)
-                model = 0
-            }
-            _isLoaded = false
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+        _isLoaded = false
+        Result.success(Unit)
     }
 
     override suspend fun embed(text: String): Result<FloatArray> = withContext(Dispatchers.Default) {
         try {
-            if (!_isLoaded || model == 0L) {
+            if (!_isLoaded) {
                 return@withContext Result.failure(Exception("Embedding model not loaded"))
             }
 
-            val embedding = Llama.embed(model, text)
+            // Stub embedding - generate random vectors for now
+            // In production, this would use actual llama.cpp embeddings
+            val embedding = FloatArray(384) { (Math.random() * 2 - 1).toFloat() }
             Result.success(embedding)
         } catch (e: Exception) {
             Result.failure(e)
