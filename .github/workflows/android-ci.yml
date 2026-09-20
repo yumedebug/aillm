@@ -24,11 +24,27 @@ jobs:
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v4
 
+    - name: Setup Android SDK
+      run: |
+        # Android SDK is pre-installed on ubuntu-latest
+        echo "ANDROID_HOME=$ANDROID_HOME"
+        echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+        ls -la $ANDROID_HOME
+        sdkmanager --list | head -20
+
+    - name: Accept SDK licenses
+      run: |
+        yes | sdkmanager --licenses || true
+
+    - name: Install SDK components
+      run: |
+        sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
 
     - name: Build Debug APK
-      run: ./gradlew assembleDebug --no-daemon
+      run: ./gradlew assembleDebug --no-daemon --stacktrace
 
     - name: Upload Debug APK
       uses: actions/upload-artifact@v4
@@ -37,6 +53,16 @@ jobs:
         name: debug-apk
         path: app/build/outputs/apk/debug/*.apk
         retention-days: 7
+
+    - name: Upload build logs on failure
+      uses: actions/upload-artifact@v4
+      if: failure()
+      with:
+        name: build-logs
+        path: |
+          **/build/reports/
+          **/build/outputs/
+        retention-days: 3
 
   release:
     runs-on: ubuntu-latest
@@ -55,6 +81,12 @@ jobs:
 
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v4
+
+    - name: Accept SDK licenses
+      run: yes | sdkmanager --licenses || true
+
+    - name: Install SDK components
+      run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
 
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
