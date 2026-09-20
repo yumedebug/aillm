@@ -27,7 +27,15 @@ jobs:
         gradle-version: '9.1.0'
 
     - name: Build Debug APK
-      run: gradle assembleDebug --no-daemon --no-build-cache
+      id: build
+      run: gradle assembleDebug --stacktrace 2>&1 | tee build-output.log; exit ${PIPESTATUS[0]}
+
+    - name: Show build errors
+      if: failure()
+      run: |
+        echo "=== BUILD OUTPUT (last 200 lines) ==="
+        tail -200 build-output.log
+      shell: bash
 
     - name: Upload Debug APK
       uses: actions/upload-artifact@v4
