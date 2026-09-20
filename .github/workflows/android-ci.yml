@@ -27,21 +27,7 @@ jobs:
         gradle-version: '9.1.0'
 
     - name: Build Debug APK
-      id: build
-      run: gradle assembleDebug --no-daemon --stacktrace > build-output.txt 2>&1 || true
-
-    - name: Verify APK and surface errors
-      id: verify
-      run: |
-        if ls app/build/outputs/apk/debug/*.apk >/dev/null 2>&1; then
-          echo "BUILD SUCCEEDED"
-        else
-          echo "BUILD FAILED"
-          grep -nE "e: |error:|FAILURE:|What went wrong|> Task .* FAILED" build-output.txt | head -25 | while IFS= read -r line; do
-            echo "::error::$line"
-          done
-          exit 1
-        fi
+      run: gradle assembleDebug --no-daemon --stacktrace
 
     - name: Upload Debug APK
       uses: actions/upload-artifact@v4
