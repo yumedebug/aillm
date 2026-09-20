@@ -27,21 +27,7 @@ jobs:
         gradle-version: '9.1.0'
 
     - name: Build Debug APK
-      id: build
-      run: gradle assembleDebug --no-daemon --stacktrace 2>&1 | tee build-output.txt
-      continue-on-error: true
-
-    - name: Upload build output on failure
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: build-output
-        path: build-output.txt
-        retention-days: 7
-
-    - name: Fail if build failed
-      if: steps.build.outcome == 'failure'
-      run: exit 1
+      run: gradle assembleDebug --no-daemon --stacktrace
 
     - name: Upload Debug APK
       uses: actions/upload-artifact@v4
