@@ -27,7 +27,23 @@ jobs:
         gradle-version: '9.1.0'
 
     - name: Build Debug APK
-      run: gradle assembleDebug --no-daemon --stacktrace
+      run: gradle assembleDebug --no-daemon --stacktrace 2>&1 | tee build-output.txt
+      continue-on-error: true
+
+    - name: Write error to summary
+      if: always()
+      run: |
+        if grep -q "BUILD FAILED" build-output.txt 2>/dev/null; then
+          echo "## Build Output (last 300 lines)" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          tail -300 build-output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          exit 1
+        elif [ ! -f build-output.txt ] || [ ! -s build-output.txt ]; then
+          echo "## Build Output" >> $GITHUB_STEP_SUMMARY
+          echo "No build output captured" >> $GITHUB_STEP_SUMMARY
+          exit 1
+        fi
 
     - name: Upload Debug APK
       uses: actions/upload-artifact@v4
