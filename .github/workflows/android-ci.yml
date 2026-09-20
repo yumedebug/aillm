@@ -28,35 +28,20 @@ jobs:
 
     - name: Build Debug APK
       id: build
-      run: gradle assembleDebug --no-daemon --stacktrace 2>&1 | tee build-output.txt || true
+      run: gradle assembleDebug --no-daemon --stacktrace > build-output.txt 2>&1 || true
 
-    - name: Report build result
-      if: always()
+    - name: Verify APK and surface errors
+      id: verify
       run: |
-        if ls app/build/outputs/apk/debug/*.apk 2>/dev/null; then
-          echo "## Build SUCCEEDED" >> $GITHUB_STEP_SUMMARY
-          echo "APK found at app/build/outputs/apk/debug/" >> $GITHUB_STEP_SUMMARY
+        if ls app/build/outputs/apk/debug/*.apk >/dev/null 2>&1; then
+          echo "BUILD SUCCEEDED"
         else
-          echo "## Build FAILED" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          tail -200 build-output.txt >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-        fi
-
-    - name: Fail if no APK
-      run: |
-        if ! ls app/build/outputs/apk/debug/*.apk 2>/dev/null; then
+          echo "BUILD FAILED"
+          grep -nE "e: |error:|FAILURE:|What went wrong|> Task .* FAILED" build-output.txt | head -25 | while IFS= read -r line; do
+            echo "::error::$line"
+          done
           exit 1
         fi
-
-    - name: Upload build log
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: build-output-log
-        path: build-output.txt
-        retention-days: 7
 
     - name: Upload Debug APK
       uses: actions/upload-artifact@v4

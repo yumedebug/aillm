@@ -1,6 +1,6 @@
-package com.goldmedal.aillm.memory
+package com.goldmedal.aillm.memory.extraction
 
-import com.goldmedal.aillm.memory.extraction.MemoryExtractor
+import com.goldmedal.aillm.memory.ExtractedMemory
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -90,11 +90,3 @@ class MemoryExtractorImpl @Inject constructor() : MemoryExtractor {
         val keywords: List<String>
     )
 }
-
-data class ExtractedMemory(
-    val category: String,
-    val key: String,
-    val value: String,
-    val importance: Int = 0,
-    val confidence: Float = 1.0f
-)

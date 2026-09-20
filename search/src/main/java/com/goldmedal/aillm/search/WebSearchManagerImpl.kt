@@ -79,19 +79,19 @@ class WebSearchManagerImpl @Inject constructor(
         setBraveApiKey(key)
     }
 
-    suspend fun setBraveApiKey(key: String) {
+    override suspend fun setBraveApiKey(key: String) {
         context.searchDataStore.edit { it[BRAVE_API_KEY] = key }
     }
 
-    suspend fun setTavilyApiKey(key: String) {
+    override suspend fun setTavilyApiKey(key: String) {
         context.searchDataStore.edit { it[TAVILY_API_KEY] = key }
     }
 
-    suspend fun getBraveApiKey(): String {
+    override suspend fun getBraveApiKey(): String {
         return context.searchDataStore.data.map { it[BRAVE_API_KEY] ?: "" }.first()
     }
 
-    suspend fun getTavilyApiKey(): String {
+    override suspend fun getTavilyApiKey(): String {
         return context.searchDataStore.data.map { it[TAVILY_API_KEY] ?: "" }.first()
     }
 }
