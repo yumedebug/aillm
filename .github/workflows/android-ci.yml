@@ -27,7 +27,26 @@ jobs:
         gradle-version: '9.1.0'
 
     - name: Build Debug APK
-      run: gradle assembleDebug --no-daemon --stacktrace
+      id: build
+      run: gradle assembleDebug --no-daemon --stacktrace 2>&1 | tee build-output.txt || true
+
+    - name: Check for APK
+      id: check
+      run: |
+        if ls app/build/outputs/apk/debug/*.apk 2>/dev/null; then
+          echo "APK found"
+          echo "build_ok=true" >> $GITHUB_OUTPUT
+        else
+          echo "APK NOT found - build failed"
+          echo "build_ok=false" >> $GITHUB_OUTPUT
+          echo ""
+          echo "=== LAST 300 LINES OF BUILD OUTPUT ==="
+          tail -300 build-output.txt
+        fi
+
+    - name: Fail if no APK
+      if: steps.check.outputs.build_ok != 'true'
+      run: exit 1
 
     - name: Upload Debug APK
       uses: actions/upload-artifact@v4
