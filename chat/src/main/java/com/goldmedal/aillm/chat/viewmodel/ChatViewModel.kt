@@ -4,7 +4,7 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.goldmedal.aillm.ai.chat.ChatMessage
-import com.goldmedal.aillm.ai.llm.LlamaChatModel
+import com.goldmedal.aillm.ai.chat.ChatModel
 import com.goldmedal.aillm.ai.modelmanager.ModelManager
 import com.goldmedal.aillm.ai.prompt.PromptBuilder
 import com.goldmedal.aillm.ai.vision.VisionModel
@@ -29,7 +29,7 @@ class ChatViewModel @Inject constructor(
     private val modelManager: ModelManager,
     private val webSearchManager: WebSearchManager,
     private val promptBuilder: PromptBuilder,
-    private val llamaChatModel: LlamaChatModel,
+    private val chatModel: ChatModel,
     private val visionModel: VisionModel
 ) : ViewModel() {
 
@@ -57,7 +57,7 @@ class ChatViewModel @Inject constructor(
 
     private fun checkModelStatus() {
         viewModelScope.launch {
-            if (llamaChatModel.isLoaded) {
+            if (chatModel.isLoaded) {
                 _modelStatus.value = "Ready"
             } else {
                 _modelStatus.value = "Model not loaded - download a model in Settings"
@@ -131,8 +131,8 @@ class ChatViewModel @Inject constructor(
                 )
 
                 // Generate response using actual LLM
-                if (llamaChatModel.isLoaded) {
-                    val response = llamaChatModel.generate(promptMessages)
+                if (chatModel.isLoaded) {
+                    val response = chatModel.generate(promptMessages)
                     if (response.isSuccess) {
                         val aiResponse = response.getOrNull() ?: ""
 
@@ -201,7 +201,7 @@ class ChatViewModel @Inject constructor(
     fun loadModel() {
         viewModelScope.launch {
             _modelStatus.value = "Loading model..."
-            val result = llamaChatModel.load()
+            val result = chatModel.load()
             if (result.isSuccess) {
                 _modelStatus.value = "Ready"
             } else {
@@ -212,7 +212,7 @@ class ChatViewModel @Inject constructor(
 
     fun unloadModel() {
         viewModelScope.launch {
-            llamaChatModel.unload()
+            chatModel.unload()
             _modelStatus.value = "Model not loaded"
         }
     }
