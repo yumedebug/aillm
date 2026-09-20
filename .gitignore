@@ -20,7 +20,6 @@ app/build/
 
 # Local configuration file
 local.properties
-gradle.properties
 
 # Android Studio
 .idea/
