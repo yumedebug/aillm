@@ -25,6 +25,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.dp
 import com.goldmedal.aillm.chat.ui.ChatScreen
 import com.goldmedal.aillm.files.ui.FileScreen
 import com.goldmedal.aillm.memory.ui.MemoryScreen
@@ -54,7 +55,7 @@ fun MainScreen() {
                     modifier = Modifier.padding(16.dp),
                     style = androidx.compose.material3.MaterialTheme.typography.headlineMedium
                 )
-                Screen.entries.forEach { screen ->
+                listOf(Screen.Chat, Screen.Memory, Screen.Files, Screen.Settings).forEach { screen ->
                     NavigationDrawerItem(
                         label = { Text(screen.title) },
                         selected = currentScreen == screen,
