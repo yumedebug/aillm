@@ -30,14 +30,23 @@ jobs:
       id: build
       run: gradle assembleDebug --no-daemon --stacktrace 2>&1 | tee build-output.txt || true
 
-    - name: Check result
+    - name: Report build result
+      if: always()
       run: |
         if ls app/build/outputs/apk/debug/*.apk 2>/dev/null; then
-          echo "BUILD SUCCEEDED"
+          echo "## Build SUCCEEDED" >> $GITHUB_STEP_SUMMARY
+          echo "APK found at app/build/outputs/apk/debug/" >> $GITHUB_STEP_SUMMARY
         else
-          echo "BUILD FAILED"
-          echo "=== TAIL OF BUILD OUTPUT ==="
-          tail -200 build-output.txt
+          echo "## Build FAILED" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          tail -200 build-output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Fail if no APK
+      run: |
+        if ! ls app/build/outputs/apk/debug/*.apk 2>/dev/null; then
           exit 1
         fi
 
