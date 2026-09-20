@@ -28,6 +28,7 @@ android {
 dependencies {
     implementation(project(":core"))
     implementation(project(":ai"))
+    implementation(project(":memory"))
 
     // llama-android: add when available on Maven Central
     // implementation("dev.ffmpegkit-maintained:llama-android:0.1.1")

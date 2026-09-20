@@ -8,7 +8,7 @@ import com.goldmedal.aillm.ai.llm.LlamaEmbeddingModel
 import com.goldmedal.aillm.ai.llm.LlamaVisionModel
 import com.goldmedal.aillm.ai.modelmanager.ModelManager
 import com.goldmedal.aillm.ai.modelmanager.ModelManagerImpl
-import com.goldmedal.aillm.ai.vision.StubImageGenerationModel
+import com.goldmedal.aillm.ai.imagegeneration.StubImageGenerationModel
 import com.goldmedal.aillm.ai.vision.StubVisionModel
 import com.goldmedal.aillm.ai.vision.VisionModel
 import com.goldmedal.aillm.core.database.ModelDao
