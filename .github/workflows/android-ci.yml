@@ -30,23 +30,24 @@ jobs:
       id: build
       run: gradle assembleDebug --no-daemon --stacktrace 2>&1 | tee build-output.txt || true
 
-    - name: Check for APK
-      id: check
+    - name: Check result
       run: |
         if ls app/build/outputs/apk/debug/*.apk 2>/dev/null; then
-          echo "APK found"
-          echo "build_ok=true" >> $GITHUB_OUTPUT
+          echo "BUILD SUCCEEDED"
         else
-          echo "APK NOT found - build failed"
-          echo "build_ok=false" >> $GITHUB_OUTPUT
-          echo ""
-          echo "=== LAST 300 LINES OF BUILD OUTPUT ==="
-          tail -300 build-output.txt
+          echo "BUILD FAILED"
+          echo "=== TAIL OF BUILD OUTPUT ==="
+          tail -200 build-output.txt
+          exit 1
         fi
 
-    - name: Fail if no APK
-      if: steps.check.outputs.build_ok != 'true'
-      run: exit 1
+    - name: Upload build log
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-output-log
+        path: build-output.txt
+        retention-days: 7
 
     - name: Upload Debug APK
       uses: actions/upload-artifact@v4
