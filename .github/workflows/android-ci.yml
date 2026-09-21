@@ -7,10 +7,13 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -27,7 +30,7 @@ jobs:
         gradle-version: '9.1.0'
 
     - name: Build Debug APK
-      run: gradle assembleDebug --no-daemon --stacktrace
+      run: gradle assembleDebug --no-daemon --stacktrace 2>&1 | tee build-session.log
 
     - name: Upload Debug APK
       uses: actions/upload-artifact@v4
@@ -36,3 +39,30 @@ jobs:
         name: aillm-debug-apk
         path: app/build/outputs/apk/debug/*.apk
         retention-days: 30
+
+    - name: Publish compile evidence on failure
+      if: failure()
+      run: |
+        set +e
+        LOG=build-session.log
+        if [ ! -f "$LOG" ]; then touch "$LOG"; fi
+        errors=$(grep -E "^e: |error:|warning: unable|FAILURE|What went wrong" "$LOG" | head -200)
+        {
+          echo "# CI build failure — captured $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo
+          echo "Commit: $GITHUB_SHA"
+          echo "Run URL: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          echo
+          echo '```'
+          echo "$errors"
+          echo '```'
+        } > ci-report.md
+        git config user.email "ci@github-actions.local"
+        git config user.name "CI Report Bot"
+        git fetch origin ci-report:ci-report 2>/dev/null || git branch ci-report
+        git checkout ci-report 2>/dev/null
+        mkdir -p build
+        cp ci-report.md build/ci-report.md
+        git add build/ci-report.md
+        git commit -m "ci-report: build failure evidence for $GITHUB_SHA" --allow-empty 2>/dev/null || true
+        git push origin ci-report --force
