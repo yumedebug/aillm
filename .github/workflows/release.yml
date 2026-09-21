@@ -43,7 +43,7 @@ jobs:
           echo "$KEYSTORE_BASE64" | base64 -d > /tmp/release.keystore
           export KEYSTORE_FILE=/tmp/release.keystore
         fi
-        gradle assembleRelease --no-daemon --stacktrace
+        gradle assembleDebug --no-daemon --stacktrace
 
     - name: Determine release tag
       id: tag
@@ -73,6 +73,7 @@ jobs:
           ### Install
           Download and install the APK on your device. Allow installation from unknown sources.
         files: |
+          app/build/outputs/apk/debug/*.apk
           app/build/outputs/apk/release/*.apk
         draft: false
         prerelease: false
