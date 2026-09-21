@@ -1,0 +1,20 @@
+BOOKMARK 2026-09-21  (USER: 再リクエスト spec 1-37, 要 GitHub-only build+release)
+
+REPO: yumedebug/aillm  ブランチ: main  ローカルビルド禁止・GitHub Actions のみ。release workflow は v1.0.1 成功済み(doc v1.0.1 概要のみ更新)。
+
+完了: 
+- Theme.kt(DarkColorScheme/LightColorScheme/AppShapes/AppTypography/AILLMTheme)整備
+- app/ui/history/HistoryScreen.kt(package com.goldmedal.aillm.ui)、HistoryViewModel は chat モジュール(com.goldmedal.aillm.chat.viewmodel/HistoryViewModel.kt 実在)参照 → 正常
+- app/ui/models/ModelsScreen.kt + ModelsViewModel.kt(package ui.models, 引数なし ModelsScreen() + ModelsViewModel は ModelManager+ModelDownloader 注入)
+- MainScreen.kt: MainTab 4 (Chat/History/Models/Settings), ModelsScreen() 引数なし, FooScreen import あり, modelManager パラメータ削除済
+- MainActivity.kt: @Inject lateinit var modelManager (app が ModelManager 解決)
+- ai 側: ai/di 実在確認済み (ModelManager は @Provides されている—grep 済み)
+
+未検証 (次回 CI で確定): 
+- ModelsViewModel → ModelManager の Hilt 結線 (app 側は ModelManager を @Inject で解決するので ModelsScreen の ModelsViewModel も ModelManager interface 注入で OK のはず)
+- HistoryViewModel(chat) の ChatRepository.getAllChats() 戻り型 List<ChatEntity> vs HistoryScreen の chats.filter 操作整合
+- chat モジュール HistoryViewModel.kt が com.goldmedal.aillm.chat.viewmodel パッケージであること(declare済)
+
+TODO 残り(大): バッチ2 = Chat画面再設計(ストリーミング/Markdown/コードコピー/再生成/停止/画像添付/モデルチップ), Memory画面(検索/カテゴリ/編集/削除), Settings再設計(カテゴリ化, Web検索は深い階層でOFF), 初回セットアップ(端末診断→推奨モデル→ユーザー選択→DL)
+
+ワークフロー: ローカルビルド禁止 → push → GitHub Actions で compile 失敗を直す。リリースは release workflow (tag v*) で GitHub Releases へデプロイ。

@@ -1,88 +1,93 @@
 package com.goldmedal.aillm.ui
 
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Chat
-import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ModalDrawerSheet
-import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.NavigationDrawerItem
-import androidx.compose.material3.NavigationDrawerItemDefaults
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import com.goldmedal.aillm.ai.modelmanager.ModelManager
 import com.goldmedal.aillm.chat.ui.ChatScreen
-import com.goldmedal.aillm.files.ui.FileScreen
 import com.goldmedal.aillm.memory.ui.MemoryScreen
 import com.goldmedal.aillm.settings.ui.SettingsScreen
-import kotlinx.coroutines.launch
+import com.goldmedal.aillm.ui.models.ModelsScreen
 
-sealed class Screen(val route: String, val title: String, val icon: ImageVector) {
-    data object Chat : Screen("chat", "Chat", Icons.Default.Chat)
-    data object Memory : Screen("memory", "Memory", Icons.Default.Memory)
-    data object Files : Screen("files", "Files", Icons.Default.Folder)
-    data object Settings : Screen("settings", "Settings", Icons.Default.Settings)
+/**
+ * Bottom navigation destinations.
+ * AI chat is the hero. History / Models / Settings orbit around it.
+ * Memory & Files & Web Search intentionally stay out of the top level.
+ */
+enum class MainTab(
+    val route: String,
+    val label: String,
+    val icon: ImageVector
+) {
+    Chat("chat", "Chat", Icons.Default.Chat),
+    History("history", "History", Icons.Default.History),
+    Models("models", "Models", Icons.Default.Memory),
+    Settings("settings", "Settings", Icons.Default.Settings)
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen() {
-    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
-    val scope = rememberCoroutineScope()
-    var currentScreen by remember { mutableStateOf<Screen>(Screen.Chat) }
+fun MainScreen(
+    onOpenMemory: () -> Unit = {},
+    onOpenFiles: () -> Unit = {}
+) {
+    var currentTab by rememberSaveable { mutableStateOf(MainTab.Chat) }
+    var showMemory by rememberSaveable { mutableStateOf(false) }
 
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        drawerContent = {
-            ModalDrawerSheet {
-                Text(
-                    text = "AI Assistant",
-                    modifier = Modifier.padding(16.dp),
-                    style = androidx.compose.material3.MaterialTheme.typography.headlineMedium
-                )
-                listOf(Screen.Chat, Screen.Memory, Screen.Files, Screen.Settings).forEach { screen ->
-                    NavigationDrawerItem(
-                        label = { Text(screen.title) },
-                        selected = currentScreen == screen,
-                        onClick = {
-                            currentScreen = screen
-                            scope.launch { drawerState.close() }
+    if (showMemory) {
+        MemoryScreen(onBackClick = { showMemory = false })
+        return
+    }
+
+    Scaffold(
+        bottomBar = {
+            NavigationBar {
+                MainTab.entries.forEach { tab ->
+                    NavigationBarItem(
+                        selected = currentTab == tab,
+                        onClick = { currentTab = tab },
+                        icon = {
+                            Icon(tab.icon, contentDescription = tab.label)
                         },
-                        icon = { Icon(screen.icon, contentDescription = screen.title) },
-                        modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                        label = { Text(tab.label) },
+                        colors = NavigationBarItemDefaults.colors()
                     )
                 }
             }
         }
-    ) {
-        when (currentScreen) {
-            Screen.Chat -> ChatScreen(
-                onMenuClick = { scope.launch { drawerState.open() } }
+    ) { padding ->
+        val contentModifier = Modifier
+            .fillMaxSize()
+            .padding(padding)
+
+        when (currentTab) {
+            MainTab.Chat -> ChatScreen(
+                onMenuClick = { onOpenMemory() }
             )
-            Screen.Memory -> MemoryScreen(
-                onBackClick = { currentScreen = Screen.Chat }
+            MainTab.History -> HistoryScreen(
+                onBackClick = { },
+                onOpenChat = { }
             )
-            Screen.Files -> FileScreen(
-                onBackClick = { currentScreen = Screen.Chat }
-            )
-            Screen.Settings -> SettingsScreen(
-                onBackClick = { currentScreen = Screen.Chat }
-            )
+            MainTab.Models -> ModelsScreen()
+            MainTab.Settings -> SettingsScreen(onBackClick = {})
         }
     }
 }
