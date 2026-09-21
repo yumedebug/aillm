@@ -26,5 +26,9 @@ data class MessageEntity(
     val createdAt: Long = System.currentTimeMillis(),
     val hasImage: Boolean = false,
     val imagePath: String? = null,
+    /** Stored file name of an attached document, relative to the document store. */
+    val documentPath: String? = null,
+    /** Original name of that document, as the user knows it. */
+    val documentName: String? = null,
     val isStreaming: Boolean = false
 )

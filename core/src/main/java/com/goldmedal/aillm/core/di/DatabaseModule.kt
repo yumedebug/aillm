@@ -2,12 +2,14 @@ package com.goldmedal.aillm.core.di
 
 import android.content.Context
 import androidx.room.Room
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.goldmedal.aillm.core.database.AppDatabase
 import com.goldmedal.aillm.core.database.ChatDao
 import com.goldmedal.aillm.core.database.FileMemoryDao
 import com.goldmedal.aillm.core.database.ImageMemoryDao
+import com.goldmedal.aillm.core.database.InstalledModelDao
 import com.goldmedal.aillm.core.database.MessageDao
-import com.goldmedal.aillm.core.database.ModelDao
 import com.goldmedal.aillm.core.database.UserMemoryDao
 import dagger.Module
 import dagger.Provides
@@ -19,6 +21,19 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
+
+    /**
+     * Messages gained attached-document columns. Migrating in place rather than
+     * letting the destructive fallback run keeps the installed-model registry
+     * (and every saved conversation) intact across the upgrade.
+     */
+    private val MIGRATION_2_3 = object : Migration(2, 3) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE messages ADD COLUMN documentPath TEXT")
+            db.execSQL("ALTER TABLE messages ADD COLUMN documentName TEXT")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
@@ -26,7 +41,9 @@ object DatabaseModule {
             context,
             AppDatabase::class.java,
             "aillm_database"
-        ).build()
+        ).addMigrations(MIGRATION_2_3)
+            .fallbackToDestructiveMigration()
+            .build()
     }
 
     @Provides
@@ -45,5 +62,6 @@ object DatabaseModule {
     fun provideFileMemoryDao(database: AppDatabase): FileMemoryDao = database.fileMemoryDao()
 
     @Provides
-    fun provideModelDao(database: AppDatabase): ModelDao = database.modelDao()
+    fun provideInstalledModelDao(database: AppDatabase): InstalledModelDao =
+        database.installedModelDao()
 }

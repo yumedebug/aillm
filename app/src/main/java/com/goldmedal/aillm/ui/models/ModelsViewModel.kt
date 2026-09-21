@@ -2,88 +2,80 @@ package com.goldmedal.aillm.ui.models
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.goldmedal.aillm.ai.modelmanager.ModelDownloader
-import com.goldmedal.aillm.ai.modelmanager.ModelInfo
-import com.goldmedal.aillm.ai.modelmanager.ModelManager
+import com.goldmedal.aillm.ai.model.ModelFit
+import com.goldmedal.aillm.ai.model.ModelKind
+import com.goldmedal.aillm.ai.model.ModelRecommender
+import com.goldmedal.aillm.ai.model.ModelRepository
+import com.goldmedal.aillm.ai.model.ModelSpec
+import com.goldmedal.aillm.ai.model.ModelStatus
+import com.goldmedal.aillm.core.device.DeviceProfile
+import com.goldmedal.aillm.core.device.DeviceProfileProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/**
- * Models tab state.
- * Surfaces the full catalog (aa available) + install/load state of each model,
- * and drives the user-initiated download flow through ModelDownloader.
- */
+data class ModelRow(
+    val spec: ModelSpec,
+    val status: ModelStatus,
+    val fit: ModelFit,
+    val recommended: Boolean
+) {
+    val isUsable: Boolean get() = fit != ModelFit.TOO_HEAVY && fit != ModelFit.NO_STORAGE
+}
+
 @HiltViewModel
 class ModelsViewModel @Inject constructor(
-    private val modelManager: ModelManager,
-    private val modelDownloader: ModelDownloader
+    private val modelRepository: ModelRepository,
+    deviceProfileProvider: DeviceProfileProvider
 ) : ViewModel() {
 
-    private val _chatModels = MutableStateFlow<Map<String, ModelInfo>>(emptyMap())
-    val chatModels: StateFlow<Map<String, ModelInfo>> = _chatModels.asStateFlow()
+    private val profile: DeviceProfile = deviceProfileProvider.profile()
 
-    private val _visionModels = MutableStateFlow<Map<String, ModelInfo>>(emptyMap())
-    val visionModels: StateFlow<Map<String, ModelInfo>> = _visionModels.asStateFlow()
+    private val _kind = MutableStateFlow(ModelKind.CHAT)
+    val kind: StateFlow<ModelKind> = _kind.asStateFlow()
 
-    private val _imageGenModels = MutableStateFlow<Map<String, ModelInfo>>(emptyMap())
-    val imageGenModels: StateFlow<Map<String, ModelInfo>> = _imageGenModels.asStateFlow()
+    val rows: StateFlow<List<ModelRow>> =
+        combine(modelRepository.states, _kind) { states, kind ->
+            val recommendedIds = ModelRecommender
+                .recommend(listOf(kind), profile)
+                .map { it.id }
+                .toSet()
+            modelRepository.byKind(kind).map { spec ->
+                ModelRow(
+                    spec = spec,
+                    status = states[spec.id] ?: ModelStatus.NotInstalled,
+                    fit = ModelRecommender.fit(spec, profile),
+                    recommended = spec.id in recommendedIds
+                )
+            }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    private val _downloadProgress = MutableStateFlow<Map<String, Float>>(emptyMap())
-    val downloadProgress: StateFlow<Map<String, Float>> = _downloadProgress.asStateFlow()
-
-    private val _error = MutableStateFlow<String?>(null)
-    val error: StateFlow<String?> = _error.asStateFlow()
-
-    init {
-        refresh()
+    fun selectKind(kind: ModelKind) {
+        _kind.value = kind
     }
 
-    fun refresh() {
-        viewModelScope.launch {
-            _chatModels.value = modelManager.getAvailableChatModels().associateBy { it.name }
-            _visionModels.value = modelManager.getAvailableVisionModels().associateBy { it.name }
-            _imageGenModels.value = modelManager.getAvailableImageGenerationModels().associateBy { it.name }
-        }
+    fun download(id: String) {
+        viewModelScope.launch { modelRepository.startDownload(id) }
     }
 
-    fun loadModel(name: String) {
-        viewModelScope.launch {
-            modelManager.loadChatModel(name)
-                .onFailure { _error.value = "Failed to load $name: ${it.message}" }
-            refresh()
-        }
+    fun cancelDownload(id: String) = modelRepository.cancelDownload(id)
+
+    fun delete(id: String) {
+        viewModelScope.launch { modelRepository.delete(id) }
     }
 
-    fun unloadModel(name: String) {
-        viewModelScope.launch {
-            modelManager.unloadChatModel()
-            refresh()
-        }
+    fun load(id: String) {
+        viewModelScope.launch { modelRepository.load(id) }
     }
 
-    fun downloadModel(name: String, url: String, fileName: String) {
-        viewModelScope.launch {
-            val model = com.goldmedal.aillm.ai.modelmanager.ModelDownload(
-                name = name,
-                url = url,
-                fileName = fileName,
-                sizeBytes = 0,
-                type = com.goldmedal.aillm.ai.modelmanager.ModelType.CHAT
-            )
-            modelDownloader.downloadModel(
-                model = model,
-                onProgress = { progress ->
-                    _downloadProgress.update { it + (name to progress) }
-                }
-            )
-                .onSuccess { _downloadProgress.update { it - name } }
-                .onFailure { _error.value = "Download failed for $name: ${it.message}" }
-            refresh()
-        }
+    fun unload() {
+        val current = _kind.value
+        viewModelScope.launch { modelRepository.unload(current) }
     }
 }

@@ -10,10 +10,10 @@ import androidx.room.RoomDatabase
         UserMemoryEntity::class,
         ImageMemoryEntity::class,
         FileMemoryEntity::class,
-        ModelEntity::class
+        InstalledModelEntity::class
     ],
-    version = 1,
-    exportSchema = true
+    version = 3,
+    exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun chatDao(): ChatDao
@@ -21,5 +21,5 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun userMemoryDao(): UserMemoryDao
     abstract fun imageMemoryDao(): ImageMemoryDao
     abstract fun fileMemoryDao(): FileMemoryDao
-    abstract fun modelDao(): ModelDao
+    abstract fun installedModelDao(): InstalledModelDao
 }

@@ -1,101 +1,79 @@
-package com.goldmedal.aillm.ui
+package com.goldmedal.aillm.ui.history
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.ui.Alignment
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChatBubbleOutline
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.goldmedal.aillm.chat.repository.ChatRepository
 import com.goldmedal.aillm.chat.viewmodel.HistoryViewModel
 import com.goldmedal.aillm.core.database.ChatEntity
+import com.goldmedal.aillm.core.design.AillmTopBar
+import com.goldmedal.aillm.core.design.EmptyState
+import com.goldmedal.aillm.core.design.Spacing
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryScreen(
-    onBackClick: () -> Unit,
-    onOpenChat: (chatId: Long) -> Unit,
+    onOpenChat: (Long) -> Unit,
     viewModel: HistoryViewModel = hiltViewModel()
 ) {
     val chats by viewModel.chats.collectAsState()
-    val dateFormat = SimpleDateFormat("MMM d, HH:mm", Locale.getDefault())
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("History") },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.Close, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
-            )
-        }
-    ) { paddingValues ->
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = { AillmTopBar(title = "History", subtitle = "Your conversations stay on this device") }
+    ) { padding ->
         if (chats.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues),
+                    .padding(padding),
                 contentAlignment = Alignment.Center
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        Icons.Default.DateRange,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        "No conversations yet",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
-                }
+                EmptyState(
+                    icon = Icons.Default.ChatBubbleOutline,
+                    title = "No conversations yet",
+                    message = "Once you start talking with your assistant, every conversation is saved here — privately, on your phone."
+                )
             }
         } else {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues)
+                    .padding(padding),
+                contentPadding = PaddingValues(horizontal = Spacing.lg, vertical = Spacing.sm),
+                verticalArrangement = Arrangement.spacedBy(Spacing.sm)
             ) {
                 items(chats, key = { it.id }) { chat ->
-                    HistoryItem(
+                    HistoryRow(
                         chat = chat,
-                        dateFormat = dateFormat,
                         onClick = { onOpenChat(chat.id) },
                         onDelete = { viewModel.deleteChat(chat.id) }
                     )
@@ -106,53 +84,45 @@ fun HistoryScreen(
 }
 
 @Composable
-private fun HistoryItem(
+private fun HistoryRow(
     chat: ChatEntity,
-    dateFormat: SimpleDateFormat,
     onClick: () -> Unit,
     onDelete: () -> Unit
 ) {
-    Card(
-        onClick = onClick,
+    val date = SimpleDateFormat("MMM d, HH:mm", Locale.getDefault()).format(Date(chat.updatedAt))
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        shape = MaterialTheme.shapes.large,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 4.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer
-        )
+            .clickable { onClick() }
     ) {
-        ListItem(
-            headlineContent = {
+        Row(
+            modifier = Modifier.padding(start = Spacing.lg, end = Spacing.xs, top = Spacing.sm, bottom = Spacing.sm),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = chat.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.titleMedium
+                    overflow = TextOverflow.Ellipsis
                 )
-            },
-            supportingContent = {
+                Spacer(Modifier.height(2.dp))
                 Text(
-                    text = dateFormat.format(Date(chat.updatedAt)),
-                    style = MaterialTheme.typography.labelMedium,
+                    text = date,
+                    style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            },
-            leadingContent = {
-                Icon(
-                    Icons.Default.ChatBubbleOutline,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            },
-            trailingContent = {
-                IconButton(onClick = onDelete) {
-                    Icon(
-                        Icons.Default.Delete,
-                        contentDescription = "Delete",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
             }
-        )
+            IconButton(onClick = onDelete) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Delete conversation",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
     }
 }

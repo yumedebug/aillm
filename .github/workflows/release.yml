@@ -14,6 +14,7 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     permissions:
       contents: write
 
@@ -32,6 +33,23 @@ jobs:
       with:
         gradle-version: '9.1.0'
 
+    - name: Install NDK and CMake
+      run: |
+        SDKMANAGER="${ANDROID_HOME:-/usr/local/lib/android/sdk}/cmdline-tools/latest/bin/sdkmanager"
+        if [ ! -x "$SDKMANAGER" ]; then
+          SDKMANAGER="$(find "${ANDROID_HOME:-/usr/local/lib/android/sdk}" -name sdkmanager -type f 2>/dev/null | head -n 1)"
+        fi
+        yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
+        "$SDKMANAGER" "ndk;27.2.12479018" "cmake;3.22.1"
+
+    - name: Cache native build
+      uses: actions/cache@v4
+      with:
+        path: llm/.cxx
+        key: native-${{ runner.os }}-${{ hashFiles('llm/src/main/cpp/**', 'llm/build.gradle.kts') }}
+        restore-keys: |
+          native-${{ runner.os }}-
+
     - name: Build release APK
       env:
         KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
@@ -43,7 +61,7 @@ jobs:
           echo "$KEYSTORE_BASE64" | base64 -d > /tmp/release.keystore
           export KEYSTORE_FILE=/tmp/release.keystore
         fi
-        gradle assembleDebug --no-daemon --stacktrace
+        gradle assembleRelease assembleDebug --no-daemon --stacktrace
 
     - name: Determine release tag
       id: tag

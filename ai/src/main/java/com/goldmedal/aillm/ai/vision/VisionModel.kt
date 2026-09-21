@@ -1,13 +1,14 @@
 package com.goldmedal.aillm.ai.vision
 
 import android.net.Uri
+import com.goldmedal.aillm.ai.engine.OnDeviceEngine
 
-interface VisionModel {
-    val name: String
-    val isLoaded: Boolean
+/**
+ * Lifecycle (load/unload/isLoaded) comes from [OnDeviceEngine]; only the
+ * vision-specific surface is declared here.
+ */
+interface VisionModel : OnDeviceEngine {
 
-    suspend fun load(): Result<Unit>
-    suspend fun unload(): Result<Unit>
     suspend fun analyzeImage(
         imageUri: Uri,
         prompt: String = "Describe this image in detail."

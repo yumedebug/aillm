@@ -1,97 +1,71 @@
 package com.goldmedal.aillm.settings.viewmodel
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.goldmedal.aillm.ai.modelmanager.ModelInfo
-import com.goldmedal.aillm.ai.modelmanager.ModelManager
-import com.goldmedal.aillm.memory.MemoryEngine
-import com.goldmedal.aillm.search.WebSearchManager
+import com.goldmedal.aillm.ai.model.ModelRepository
+import com.goldmedal.aillm.ai.model.ModelSpec
+import com.goldmedal.aillm.ai.model.isInstalled
+import com.goldmedal.aillm.core.design.ThemeMode
+import com.goldmedal.aillm.core.preferences.AppSettings
+import com.goldmedal.aillm.search.OnlineSources
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    application: Application,
-    private val modelManager: ModelManager,
-    private val memoryEngine: MemoryEngine,
-    private val webSearchManager: WebSearchManager
-) : AndroidViewModel(application) {
+    private val appSettings: AppSettings,
+    private val modelRepository: ModelRepository,
+    private val onlineSources: OnlineSources
+) : ViewModel() {
 
-    private val _models = MutableStateFlow<List<ModelInfo>>(emptyList())
-    val models: StateFlow<List<ModelInfo>> = _models.asStateFlow()
+    val themeMode: StateFlow<ThemeMode> =
+        appSettings.themeMode.stateIn(viewModelScope, SharingStarted.Eagerly, ThemeMode.SYSTEM)
 
-    private val _isWebSearchEnabled = MutableStateFlow(false)
-    val isWebSearchEnabled: StateFlow<Boolean> = _isWebSearchEnabled.asStateFlow()
+    val temperature: StateFlow<Float> =
+        appSettings.temperature.stateIn(viewModelScope, SharingStarted.Eagerly, 0.7f)
 
-    private val _braveApiKey = MutableStateFlow("")
-    val braveApiKey: StateFlow<String> = _braveApiKey.asStateFlow()
+    val maxTokens: StateFlow<Int> =
+        appSettings.maxTokens.stateIn(viewModelScope, SharingStarted.Eagerly, 2048)
 
-    private val _tavilyApiKey = MutableStateFlow("")
-    val tavilyApiKey: StateFlow<String> = _tavilyApiKey.asStateFlow()
+    val contextLength: StateFlow<Int> =
+        appSettings.contextLength.stateIn(viewModelScope, SharingStarted.Eagerly, 4096)
 
-    init {
-        loadModels()
-        loadSearchSettings()
-    }
+    val onlineSourcesEnabled: StateFlow<Boolean> =
+        appSettings.onlineSourcesEnabled.stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
-    private fun loadModels() {
-        viewModelScope.launch {
-            val installedModels = modelManager.getInstalledModels()
-            _models.value = installedModels
-        }
-    }
+    val reduceMotion: StateFlow<Boolean> =
+        appSettings.reduceMotion.stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
-    private fun loadSearchSettings() {
-        viewModelScope.launch {
-            _isWebSearchEnabled.value = webSearchManager.isEnabled()
-            _braveApiKey.value = webSearchManager.getBraveApiKey()
-            _tavilyApiKey.value = webSearchManager.getTavilyApiKey()
-        }
-    }
+    val installedModels: StateFlow<List<ModelSpec>> =
+        modelRepository.states.map { states ->
+            modelRepository.catalog().filter { states[it.id]?.isInstalled == true }
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
-    fun setWebSearchEnabled(enabled: Boolean) {
-        viewModelScope.launch {
-            webSearchManager.setEnabled(enabled)
-            _isWebSearchEnabled.value = enabled
-        }
-    }
+    val loadedChatModel: StateFlow<ModelSpec?> =
+        modelRepository.states.map { states ->
+            modelRepository.activeChatModelId()?.let { id ->
+                modelRepository.spec(id)?.takeIf { states[id]?.isInstalled == true }
+            }
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
-    fun setBraveApiKey(key: String) {
-        viewModelScope.launch {
-            webSearchManager.setBraveApiKey(key)
-            _braveApiKey.value = key
-        }
-    }
+    fun setThemeMode(mode: ThemeMode) = launch { appSettings.setThemeMode(mode) }
 
-    fun setTavilyApiKey(key: String) {
-        viewModelScope.launch {
-            webSearchManager.setTavilyApiKey(key)
-            _tavilyApiKey.value = key
-        }
-    }
+    fun setTemperature(value: Float) = launch { appSettings.setTemperature(value) }
 
-    fun loadModel(modelName: String) {
-        viewModelScope.launch {
-            modelManager.loadChatModel(modelName)
-            loadModels()
-        }
-    }
+    fun setMaxTokens(value: Int) = launch { appSettings.setMaxTokens(value) }
 
-    fun unloadModel(modelName: String) {
-        viewModelScope.launch {
-            modelManager.unloadChatModel()
-            loadModels()
-        }
-    }
+    fun setContextLength(value: Int) = launch { appSettings.setContextLength(value) }
 
-    fun deleteAllMemories() {
-        viewModelScope.launch {
-            memoryEngine.deleteAllMemories()
-        }
+    fun setOnlineSourcesEnabled(value: Boolean) = launch { onlineSources.setEnabled(value) }
+
+    fun setReduceMotion(value: Boolean) = launch { appSettings.setReduceMotion(value) }
+
+    private fun launch(block: suspend () -> Unit) {
+        viewModelScope.launch { block() }
     }
 }

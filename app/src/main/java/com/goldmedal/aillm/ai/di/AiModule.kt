@@ -3,15 +3,15 @@ package com.goldmedal.aillm.ai.di
 import android.content.Context
 import com.goldmedal.aillm.ai.chat.ChatModel
 import com.goldmedal.aillm.ai.imagegeneration.ImageGenerationModel
+import com.goldmedal.aillm.ai.imagegeneration.StubImageGenerationModel
 import com.goldmedal.aillm.ai.llm.LlamaChatModel
 import com.goldmedal.aillm.ai.llm.LlamaEmbeddingModel
 import com.goldmedal.aillm.ai.llm.LlamaVisionModel
-import com.goldmedal.aillm.ai.modelmanager.ModelManager
-import com.goldmedal.aillm.ai.modelmanager.ModelManagerImpl
-import com.goldmedal.aillm.ai.imagegeneration.StubImageGenerationModel
-import com.goldmedal.aillm.ai.vision.StubVisionModel
+import com.goldmedal.aillm.ai.model.ModelDownloader
+import com.goldmedal.aillm.ai.model.ModelRepository
+import com.goldmedal.aillm.ai.model.ModelRepositoryImpl
 import com.goldmedal.aillm.ai.vision.VisionModel
-import com.goldmedal.aillm.core.database.ModelDao
+import com.goldmedal.aillm.core.database.InstalledModelDao
 import com.goldmedal.aillm.memory.embedding.EmbeddingModel
 import dagger.Module
 import dagger.Provides
@@ -24,71 +24,48 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object AiModule {
 
+    /**
+     * The chat runtime is also what vision runs on (a multimodal model is a text
+     * model plus a projector), so both interfaces must resolve to the same
+     * instance. LlamaChatModel is a @Singleton with an @Inject constructor, so
+     * every injection site below receives that one instance.
+     */
     @Provides
     @Singleton
-    fun provideLlamaChatModel(
-        @ApplicationContext context: Context
-    ): LlamaChatModel {
-        return LlamaChatModel(context)
-    }
-
-    @Provides
-    @Singleton
-    fun provideLlamaVisionModel(
-        @ApplicationContext context: Context
-    ): LlamaVisionModel {
-        return LlamaVisionModel(context)
-    }
-
-    @Provides
-    @Singleton
-    fun provideLlamaEmbeddingModel(
-        @ApplicationContext context: Context
-    ): LlamaEmbeddingModel {
-        return LlamaEmbeddingModel(context)
-    }
-
-    @Provides
-    @Singleton
-    fun provideChatModel(
-        llamaChatModel: LlamaChatModel
-    ): ChatModel {
-        return llamaChatModel
-    }
+    fun provideChatModel(impl: LlamaChatModel): ChatModel = impl
 
     @Provides
     @Singleton
     fun provideVisionModel(
-        llamaVisionModel: LlamaVisionModel
-    ): VisionModel {
-        return llamaVisionModel
-    }
+        @ApplicationContext context: Context,
+        chatModel: LlamaChatModel
+    ): VisionModel = LlamaVisionModel(context, chatModel)
 
     @Provides
     @Singleton
-    fun provideImageGenerationModel(): ImageGenerationModel {
-        return StubImageGenerationModel()
-    }
+    fun provideImageGenerationModel(): ImageGenerationModel = StubImageGenerationModel()
 
     @Provides
     @Singleton
     fun provideEmbeddingModel(
-        llamaEmbeddingModel: LlamaEmbeddingModel
-    ): EmbeddingModel {
-        return llamaEmbeddingModel
-    }
+        @ApplicationContext context: Context
+    ): EmbeddingModel = LlamaEmbeddingModel(context)
 
     @Provides
     @Singleton
-    fun provideModelManager(
-        modelDao: ModelDao,
+    fun provideModelRepository(
+        @ApplicationContext context: Context,
+        installedModelDao: InstalledModelDao,
+        downloader: ModelDownloader,
         chatModel: ChatModel,
         visionModel: VisionModel,
         imageGenerationModel: ImageGenerationModel
-    ): ModelManager {
-        val chatModelMap = mapOf(chatModel.name to chatModel)
-        val visionModelMap = mapOf(visionModel.name to visionModel)
-        val imageGenerationModelMap = mapOf(imageGenerationModel.name to imageGenerationModel)
-        return ModelManagerImpl(modelDao, chatModelMap, visionModelMap, imageGenerationModelMap)
-    }
+    ): ModelRepository = ModelRepositoryImpl(
+        context = context,
+        installedModelDao = installedModelDao,
+        downloader = downloader,
+        chatModel = chatModel,
+        visionModel = visionModel,
+        imageGenerationModel = imageGenerationModel
+    )
 }

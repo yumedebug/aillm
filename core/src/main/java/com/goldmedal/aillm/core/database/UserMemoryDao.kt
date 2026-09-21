@@ -19,8 +19,30 @@ interface UserMemoryDao {
     @Query("SELECT * FROM user_memories WHERE key = :key AND category = :category AND isActive = 1 LIMIT 1")
     suspend fun getMemoryByKey(category: String, key: String): UserMemoryEntity?
 
-    @Query("SELECT * FROM user_memories WHERE value LIKE '%' || :query || '%' AND isActive = 1")
-    suspend fun searchMemoriesByValue(query: String): List<UserMemoryEntity>
+    /** Every active memory in one shot, for ranking in memory rather than in SQL. */
+    @Query("SELECT * FROM user_memories WHERE isActive = 1 ORDER BY importance DESC, updatedAt DESC")
+    suspend fun getAllActiveMemoriesOnce(): List<UserMemoryEntity>
+
+    @Query("SELECT * FROM user_memories WHERE id = :memoryId")
+    suspend fun getMemoryById(memoryId: Long): UserMemoryEntity?
+
+    @Query("SELECT * FROM user_memories WHERE category = :category AND isActive = 1 ORDER BY updatedAt DESC")
+    suspend fun getActiveMemoriesByCategoryOnce(category: String): List<UserMemoryEntity>
+
+    /**
+     * Memories that were consolidated away. They are archived rather than
+     * deleted so nothing the assistant believed about the user is lost without
+     * the user being able to bring it back.
+     */
+    @Query("SELECT * FROM user_memories WHERE isActive = 0 ORDER BY updatedAt DESC")
+    fun getArchivedMemories(): Flow<List<UserMemoryEntity>>
+
+    @Query("UPDATE user_memories SET isActive = :isActive WHERE id = :memoryId")
+    suspend fun setMemoryActive(memoryId: Long, isActive: Boolean)
+
+    /** Marks memories as used, so "recently used" ordering means something. */
+    @Query("UPDATE user_memories SET lastAccessedAt = :timestamp WHERE id IN (:ids)")
+    suspend fun touchMemories(ids: List<Long>, timestamp: Long)
 
     @Query("SELECT * FROM user_memories WHERE isActive = 1 ORDER BY lastAccessedAt DESC LIMIT :limit")
     suspend fun getMostRecentlyAccessedMemories(limit: Int): List<UserMemoryEntity>

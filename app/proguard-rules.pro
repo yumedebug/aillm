@@ -35,9 +35,6 @@
 -keep class com.goldmedal.aillm.core.database.** { *; }
 -keep class com.goldmedal.aillm.ai.chat.ChatMessage { *; }
 -keep class com.goldmedal.aillm.ai.vision.ImageAnalysis { *; }
--keep class com.goldmedal.aillm.ai.modelmanager.ModelInfo { *; }
+-keep class com.goldmedal.aillm.ai.model.** { *; }
 -keep class com.goldmedal.aillm.search.SearchResult { *; }
 -keep class com.goldmedal.aillm.search.SearchItem { *; }
--keep class com.goldmedal.aillm.search.TavilyRequest { *; }
--keep class com.goldmedal.aillm.search.TavilyResponse { *; }
--keep class com.goldmedal.aillm.search.TavilyResult { *; }

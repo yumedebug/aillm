@@ -1,14 +1,15 @@
 package com.goldmedal.aillm.ai.chat
 
+import com.goldmedal.aillm.ai.engine.OnDeviceEngine
 import kotlinx.coroutines.flow.Flow
 
-interface ChatModel {
-    val name: String
-    val isLoaded: Boolean
+/**
+ * Lifecycle (load/unload/isLoaded) comes from [OnDeviceEngine]; only the
+ * chat-specific surface is declared here.
+ */
+interface ChatModel : OnDeviceEngine {
     val contextLength: Int
 
-    suspend fun load(): Result<Unit>
-    suspend fun unload(): Result<Unit>
     suspend fun generate(
         messages: List<ChatMessage>,
         temperature: Float = 0.7f,

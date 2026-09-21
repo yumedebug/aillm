@@ -2,15 +2,31 @@ package com.goldmedal.aillm.memory
 
 import com.goldmedal.aillm.core.database.UserMemoryDao
 import com.goldmedal.aillm.core.database.UserMemoryEntity
+import com.goldmedal.aillm.memory.consolidation.MemoryConsolidator
+import com.goldmedal.aillm.memory.embedding.SemanticSearch
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class MemoryEngineImpl @Inject constructor(
-    private val userMemoryDao: UserMemoryDao
+    private val userMemoryDao: UserMemoryDao,
+    private val semanticSearch: SemanticSearch,
+    private val consolidator: MemoryConsolidator
 ) : MemoryEngine {
 
+    override fun observeMemories(): Flow<List<UserMemoryEntity>> =
+        userMemoryDao.getAllActiveMemories()
+
+    override fun observeArchivedMemories(): Flow<List<UserMemoryEntity>> =
+        userMemoryDao.getArchivedMemories()
+
+    /**
+     * Facts are never just inserted: [MemoryConsolidator] merges them into what
+     * is already known, so saying the same thing twice strengthens one memory
+     * instead of creating two.
+     */
     override suspend fun storeMemory(
         category: String,
         key: String,
@@ -20,22 +36,8 @@ class MemoryEngineImpl @Inject constructor(
         sourceMessageId: Long?
     ): Result<Long> {
         return try {
-            val existingMemory = userMemoryDao.getMemoryByKey(category, key)
-            if (existingMemory != null) {
-                // Update existing memory
-                val updatedMemory = existingMemory.copy(
-                    value = value,
-                    importance = importance,
-                    confidence = confidence,
-                    updatedAt = System.currentTimeMillis(),
-                    lastAccessedAt = System.currentTimeMillis(),
-                    sourceMessageId = sourceMessageId ?: existingMemory.sourceMessageId
-                )
-                userMemoryDao.updateMemory(updatedMemory)
-                Result.success(updatedMemory.id)
-            } else {
-                // Create new memory
-                val newMemory = UserMemoryEntity(
+            Result.success(
+                consolidator.store(
                     category = category,
                     key = key,
                     value = value,
@@ -43,9 +45,7 @@ class MemoryEngineImpl @Inject constructor(
                     confidence = confidence,
                     sourceMessageId = sourceMessageId
                 )
-                val id = userMemoryDao.insertMemory(newMemory)
-                Result.success(id)
-            }
+            )
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -55,8 +55,20 @@ class MemoryEngineImpl @Inject constructor(
         return userMemoryDao.getMemoryByKey(category, key)
     }
 
+    /**
+     * What the model gets to see about the user for one turn. Retrieval lives
+     * in [SemanticSearch]; this only records that the memories were used, which
+     * is what makes "recently used" ordering meaningful.
+     */
     override suspend fun searchMemories(query: String): List<UserMemoryEntity> {
-        return userMemoryDao.searchMemoriesByValue(query)
+        val memories = runCatching { semanticSearch.search(query, RECALL_LIMIT) }
+            .getOrDefault(emptyList())
+        if (memories.isNotEmpty()) {
+            runCatching {
+                userMemoryDao.touchMemories(memories.map { it.id }, System.currentTimeMillis())
+            }
+        }
+        return memories
     }
 
     override suspend fun getMemoriesByCategory(category: String): List<UserMemoryEntity> {
@@ -69,6 +81,23 @@ class MemoryEngineImpl @Inject constructor(
 
     override suspend fun getMostRecentlyAccessedMemories(limit: Int): List<UserMemoryEntity> {
         return userMemoryDao.getMostRecentlyAccessedMemories(limit)
+    }
+
+    override suspend fun restoreMemory(memoryId: Long): Result<Unit> {
+        return try {
+            consolidator.restore(memoryId)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun cleanUpMemories(): Result<Int> {
+        return try {
+            Result.success(consolidator.cleanUp())
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     override suspend fun updateMemory(memory: UserMemoryEntity): Result<Unit> {
@@ -108,5 +137,10 @@ class MemoryEngineImpl @Inject constructor(
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    private companion object {
+        /** Upper bound on memories recalled per turn. */
+        private const val RECALL_LIMIT = 10
     }
 }

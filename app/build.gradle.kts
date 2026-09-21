@@ -14,8 +14,12 @@ android {
         applicationId = "com.goldmedal.aillm"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.1.0"
+
+        // Developer-controlled search backend. Empty by default: online sources
+        // stay inactive, and no secret is ever shipped in the APK.
+        buildConfigField("String", "SEARCH_BACKEND_URL", "\"\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

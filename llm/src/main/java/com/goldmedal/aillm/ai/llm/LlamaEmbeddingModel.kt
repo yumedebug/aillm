@@ -3,76 +3,58 @@ package com.goldmedal.aillm.ai.llm
 import android.content.Context
 import com.goldmedal.aillm.memory.embedding.EmbeddingModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * Placeholder for on-device embeddings.
+ *
+ * No embedding backend ships with this build, so this refuses to load rather
+ * than handing out vectors that mean nothing: a similarity search over random
+ * numbers looks like it works and would quietly rank memories at random. Memory
+ * retrieval stays lexical in the meantime, which is honest and still useful.
+ *
+ * The context is kept because a real implementation would load a small
+ * embedding GGUF from the same model store the chat models use.
+ */
 @Singleton
 class LlamaEmbeddingModel @Inject constructor(
     @ApplicationContext private val context: Context
 ) : EmbeddingModel {
 
-    private var _isLoaded = false
+    override val name: String = "On-device embeddings (unavailable)"
 
-    override val name: String = "llama.cpp Embedding (Stub)"
-    override val isLoaded: Boolean get() = _isLoaded
+    override val isLoaded: Boolean = false
 
-    override suspend fun load(): Result<Unit> = withContext(Dispatchers.Default) {
-        try {
-            // TODO: Load actual embedding model with llama.cpp
-            _isLoaded = true
-            Result.success(Unit)
-        } catch (e: Exception) {
-            _isLoaded = false
-            Result.failure(e)
-        }
-    }
+    override suspend fun load(): Result<Unit> = Result.failure(
+        UnsupportedOperationException(NOT_AVAILABLE)
+    )
 
-    override suspend fun unload(): Result<Unit> = withContext(Dispatchers.Default) {
-        _isLoaded = false
-        Result.success(Unit)
-    }
+    override suspend fun unload(): Result<Unit> = Result.success(Unit)
 
-    override suspend fun embed(text: String): Result<FloatArray> = withContext(Dispatchers.Default) {
-        try {
-            if (!_isLoaded) {
-                return@withContext Result.failure(Exception("Embedding model not loaded"))
-            }
+    override suspend fun embed(text: String): Result<FloatArray> = Result.failure(
+        UnsupportedOperationException(NOT_AVAILABLE)
+    )
 
-            // Stub embedding - generate random vectors for now
-            // In production, this would use actual llama.cpp embeddings
-            val embedding = FloatArray(384) { (Math.random() * 2 - 1).toFloat() }
-            Result.success(embedding)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    override suspend fun embedBatch(texts: List<String>): Result<List<FloatArray>> {
-        return try {
-            val results = texts.map { embed(it).getOrThrow() }
-            Result.success(results)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
+    override suspend fun embedBatch(texts: List<String>): Result<List<FloatArray>> =
+        Result.failure(UnsupportedOperationException(NOT_AVAILABLE))
 
     override fun cosineSimilarity(a: FloatArray, b: FloatArray): Float {
-        if (a.size != b.size) return 0f
-        var dotProduct = 0f
+        if (a.size != b.size || a.isEmpty()) return 0f
+        var dot = 0f
         var normA = 0f
         var normB = 0f
         for (i in a.indices) {
-            dotProduct += a[i] * b[i]
+            dot += a[i] * b[i]
             normA += a[i] * a[i]
             normB += b[i] * b[i]
         }
-        return if (normA > 0f && normB > 0f) {
-            dotProduct / (Math.sqrt(normA.toDouble()) * Math.sqrt(normB.toDouble())).toFloat()
-        } else {
-            0f
-        }
+        val denominator = Math.sqrt(normA.toDouble()) * Math.sqrt(normB.toDouble())
+        return if (denominator > 0.0) (dot / denominator).toFloat() else 0f
+    }
+
+    private companion object {
+        private const val NOT_AVAILABLE =
+            "On-device embeddings are not implemented in this build."
     }
 }

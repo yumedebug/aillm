@@ -4,7 +4,9 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,112 +16,90 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.InsertDriveFile
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.goldmedal.aillm.core.database.FileMemoryEntity
+import com.goldmedal.aillm.core.design.AillmTopBar
+import com.goldmedal.aillm.core.design.EmptyState
+import com.goldmedal.aillm.core.design.Spacing
+import com.goldmedal.aillm.core.design.formatBytes
 import com.goldmedal.aillm.files.viewmodel.FileViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FileScreen(
-    onBackClick: () -> Unit,
+    onBack: () -> Unit,
     viewModel: FileViewModel = hiltViewModel()
 ) {
     val files by viewModel.files.collectAsState()
 
-    val filePickerLauncher = rememberLauncherForActivityResult(
+    val filePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
-    ) { uri: Uri? ->
-        uri?.let { viewModel.importFile(it) }
-    }
+    ) { uri: Uri? -> uri?.let { viewModel.importFile(it) } }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Files") },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
-            )
-        },
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = { AillmTopBar(title = "Files", onBack = onBack) },
         floatingActionButton = {
-            FloatingActionButton(onClick = {
-                filePickerLauncher.launch(arrayOf(
-                    "text/*",
-                    "application/json",
-                    "application/xml",
-                    "application/pdf"
-                ))
-            }) {
-                Icon(Icons.Default.Add, contentDescription = "Import File")
+            FloatingActionButton(
+                onClick = {
+                    filePicker.launch(
+                        arrayOf("text/*", "application/json", "application/xml", "application/pdf")
+                    )
+                },
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Import file")
             }
         }
-    ) { paddingValues ->
+    ) { padding ->
         if (files.isEmpty()) {
-            Column(
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .padding(padding),
+                contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.InsertDriveFile,
-                    contentDescription = null,
-                    modifier = Modifier.padding(16.dp)
-                )
-                Text(
-                    text = "No files imported yet",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = "Tap + to import files",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                EmptyState(
+                    icon = Icons.Default.InsertDriveFile,
+                    title = "No files yet",
+                    message = "Import a document and its text becomes available to your assistant, kept on this device."
                 )
             }
         } else {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues)
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                    .padding(padding),
+                contentPadding = PaddingValues(
+                    start = Spacing.lg,
+                    end = Spacing.lg,
+                    top = Spacing.sm,
+                    bottom = 96.dp
+                ),
+                verticalArrangement = Arrangement.spacedBy(Spacing.sm)
             ) {
-                items(files) { file ->
-                    FileItem(
-                        file = file,
-                        onDelete = { viewModel.deleteFile(file.id) }
-                    )
+                items(files, key = { it.id }) { file ->
+                    FileRow(file = file, onDelete = { viewModel.deleteFile(file.id) })
                 }
             }
         }
@@ -127,62 +107,51 @@ fun FileScreen(
 }
 
 @Composable
-fun FileItem(
+private fun FileRow(
     file: FileMemoryEntity,
     onDelete: () -> Unit
 ) {
-    val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
+    val date = SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(file.createdAt))
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        shape = MaterialTheme.shapes.large,
+        modifier = Modifier.fillMaxWidth()
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier.padding(start = Spacing.lg, end = Spacing.xs, top = Spacing.md, bottom = Spacing.md),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = file.fileName,
-                    style = MaterialTheme.typography.bodyLarge
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = "Type: ${file.fileType} | Size: ${formatFileSize(file.fileSize)}",
-                    style = MaterialTheme.typography.bodySmall,
+                    text = "${file.fileType} · ${formatBytes(file.fileSize)} · $date",
+                    style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 if (file.summary.isNotBlank()) {
+                    Spacer(Modifier.height(Spacing.xs))
                     Text(
-                        text = file.summary.take(100) + if (file.summary.length > 100) "..." else "",
+                        text = file.summary,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 4.dp)
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
-                Text(
-                    text = "Imported: ${dateFormat.format(Date(file.createdAt))}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
             }
             IconButton(onClick = onDelete) {
-                Icon(Icons.Default.Delete, contentDescription = "Delete")
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Delete file",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
-    }
-}
-
-private fun formatFileSize(bytes: Long): String {
-    return when {
-        bytes >= 1_073_741_824 -> "${String.format("%.1f", bytes / 1_073_741_824.0)} GB"
-        bytes >= 1_048_576 -> "${String.format("%.1f", bytes / 1_048_576.0)} MB"
-        bytes >= 1_024 -> "${String.format("%.1f", bytes / 1_024.0)} KB"
-        else -> "$bytes B"
     }
 }

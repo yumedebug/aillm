@@ -1,119 +1,183 @@
-# AI Assistant (AILLM)
+# AILLM
 
-A local AI assistant Android app with long-term memory capabilities. All AI processing happens on-device by default, with optional web search functionality.
+A local-first Android assistant with long-term memory that lives on your phone.
+No model ships inside the APK: you choose what to download, and everything —
+chat, memory, images, inference — stays on-device. Online sources are off
+unless you explicitly turn them on.
 
-## Features
+## Product principles
 
-### Core AI
-- **On-Device LLM**: Chat with AI models running entirely on your phone
-- **Long-term Memory**: AI remembers your preferences, information, and past conversations
-- **Vision Support**: Analyze images with vision models
-- **Image Generation**: Generate images (coming soon)
+1. **Chat is the hero.** The main screen is a conversation, not a settings panel.
+2. **No model is assumed.** A fresh install with zero models is a normal, working
+   state. The app never crashes or blocks because a model is missing.
+3. **The user chooses models.** The setup wizard reads the real device (RAM, CPU,
+   ABI, storage, GPU hints) and *recommends* three models for each of chat,
+   coding and images — but nothing downloads without a tap.
+4. **Installed ≠ Ready.** Install state (file on disk, verified) is tracked
+   separately from load state (engine loaded, inference possible).
+5. **One finished AI app**, not a bag of features. Settings are grouped and
+   anything niche (performance, online sources, diagnostics) lives deep.
 
-### Memory System
-- **Automatic Extraction**: AI automatically learns from your conversations
-- **Semantic Search**: Find memories using natural language queries
-- **Categories**: Organize memories by type (Profile, Preferences, Projects, etc.)
-- **Memory Management**: Edit, delete, or view all stored memories
+## Information architecture
 
-### Chat Interface
-- **Modern UI**: Clean Jetpack Compose interface with dark theme
-- **Message History**: Full conversation history with timestamps
-- **Image Attachments**: Send images for AI analysis
-- **Real-time Streaming**: Watch AI responses appear in real-time
+Bottom navigation has exactly four destinations: **Chat · History · Models ·
+Settings**. Memory, Files, Storage, Online sources and About are reached from
+Settings (or contextually from Chat).
 
-### File Management
-- **File Import**: Import text, markdown, JSON, and other files
-- **Text Extraction**: Automatically extract and summarize file contents
-- **File Search**: Search through imported files
+## Models
 
-### Privacy & Security
-- **100% Local**: All data stays on your device
-- **No Cloud Required**: Works completely offline
-- **Encrypted Storage**: Secure storage for sensitive data
-- **API Key Protection**: Web search API keys stored securely
+Four independent roles, loaded on demand and never all at once:
 
-## Supported Models
+| Role | Purpose |
+|------|---------|
+| Chat | Conversation and reasoning |
+| Coding | Writing, reviewing and explaining code |
+| Vision | Image understanding (describe photos, screenshots, documents) |
+| Image generation | Text-to-image |
 
-### Chat Models (GGUF format)
-| Model | Size | Speed | Quality |
-|-------|------|-------|---------|
-| Qwen2.5-0.5B | ~400MB | Very Fast | Basic |
-| Qwen2.5-1.5B | ~1GB | Fast | Good |
-| Qwen2.5-3B | ~2GB | Moderate | High |
-| Phi-3.5 Mini | ~2.2GB | Moderate | High |
-| Llama 3.2 3B | ~2GB | Moderate | High |
+Every model is fetched directly from a **public Hugging Face repository** that
+has been checked to exist and to need no login. Chat and Coding share one
+runtime, so only one of the two is resident at a time.
 
-### Vision Models
-- Qwen2.5-VL series (coming soon)
+Models live in `ai/model/`: a catalogue (`ModelSpec`), a lifecycle state machine
+(`ModelStatus`), a recommender (`ModelRecommender`) that ranks the library for
+the actual device, and a `ModelRepository` that owns download, verification and
+loading. Downloads are resumable and cancellable, and vision models pull their
+`mmproj` projector in the same operation — only a fully verified set counts as
+installed.
 
-### Embedding Models
-- For semantic memory search
+The setup wizard shows three device-aware shortlists — **Chat, Coding and
+Images** — three models each, and installs only what the user picks.
 
 ## Architecture
 
 ```
-app/
-├── ai/          - AI model abstractions and implementations
-│   ├── chat/    - Chat model interface
-│   ├── vision/  - Vision model interface
-│   ├── llm/     - llama.cpp integration
-│   └── prompt/  - Prompt engineering
-├── memory/      - Memory engine for long-term storage
-│   ├── database/ - Room entities and DAOs
-│   ├── embedding/ - Semantic search
-│   └── extraction/ - Automatic memory extraction
-├── chat/        - Chat UI and ViewModel
-├── search/      - Web search providers
-├── settings/    - App settings and model management
-├── files/       - File management
-└── core/        - Database, utilities, and shared components
+app/        Navigation, setup wizard, models & history screens, DI wiring
+core/       Design system, preferences, device probe, Room database
+ai/         Model catalogue/repository/downloader, prompts, engine interfaces
+llm/        llama.cpp JNI bridge (C++ via NDK/CMake) + chat engine
+memory/     Memory engine, extraction, semantic search, memory UI
+search/     WebSearchClient abstraction + default-OFF online sources flag
+chat/       Chat UI, streaming view model, message history
+settings/   Grouped settings screens
+files/      File import and text extraction
 ```
 
-## Installation
+Tech: Kotlin, Jetpack Compose, Material 3 (with a custom design system), Hilt,
+Room, DataStore, OkHttp, Coil, llama.cpp.
 
-### From Source
-1. Clone the repository
-2. Open in Android Studio
-3. Build and run on your device (API 26+)
+## Design language
 
-### Model Setup
-1. Open the app
-2. Go to Settings > Model Management
-3. Download a GGUF model (Qwen2.5 recommended)
-4. Load the model when download completes
+The app is one frosted-glass surface floating on a heavily blurred gradient.
+Screens keep a **transparent** Scaffold container, so the ambient layer is what
+every panel sits on; panels are separated from it by a hairline highlight rather
+than a drop shadow. Implementation is dependency-free: `Modifier.blur` for the
+ambient orbs, translucent surface colours in the colour scheme, and the shared
+`GlassSurface` / `glassBorderColor()` building blocks. The bottom navigation is a
+single floating pill with four destinations.
 
-## Technical Details
+## Memory
 
-### Tech Stack
-- **Language**: Kotlin
-- **UI**: Jetpack Compose with Material 3
-- **DI**: Hilt
-- **Database**: Room (SQLite)
-- **AI Engine**: llama.cpp via llama-android
-- **Architecture**: MVVM with Clean Architecture
+Memory is separate from the model. Facts are extracted from the conversation,
+stored in Room, and only the relevant ones are put in front of the model each
+turn — the weights themselves are never fine-tuned.
 
-### Requirements
-- Android 8.0 (API 26) or higher
-- 4GB+ RAM recommended
-- 2GB+ free storage for models
+- **Extraction** (`MemoryExtractorImpl`) picks up things people state about
+themselves: OS, language, device, preferences (English and Japanese). Latin
+keywords match on word boundaries, so "arch" no longer fires on "search"; the
+stored value is the clause around the keyword, not a bare word.
+- **Retrieval** (`SemanticSearch`) ranks memories against the current message by
+  term overlap — word hits count for more than n-grams, and CJK terms also
+  contribute character n-grams because a Japanese sentence has no spaces to
+  split on. A few of the most important memories are always included, so the
+  assistant keeps knowing who it is talking to. Retrieved memories get their
+  `lastAccessedAt` bumped, which is what makes "recently used" ordering real.
+- **Consolidation** (`MemoryConsolidator`) is what keeps memory from turning
+  into a pile. A fact is never just inserted: saying the same thing again
+  reinforces the existing memory (confidence rises, `updatedAt` moves) instead
+  of adding a near-copy, matched on the same overlap measure retrieval uses. On
+  top of that each category keeps only its few most recent statements
+  (3 for OS/device/profile, 4 for languages, 8 for preferences). Sweeping
+  happens automatically per write, and “Tidy up” in Settings → Memory merges
+  what has already piled up. **Nothing is deleted by consolidation** — rows are
+  archived (`isActive = 0`), the Archived filter shows them, and a memory can be
+  restored with one tap.
+- **Embeddings** are planned, not present: the embedding implementation refuses
+  to load rather than returning random vectors, which would have made similarity
+  search look like it worked.
+- Memories are inspectable and editable in Settings → Memory, and from the
+  conversation itself: the memory button in the chat bar opens a sheet with what
+  the assistant currently knows, where a memory can be searched, corrected or
+  forgotten without leaving the chat. The next reply already sees the change,
+  because memories are read fresh for every turn.
 
-### Build Information
-- Gradle 9.1.0
-- AGP 9.0.0
-- Kotlin 2.2.10
-- Hilt 2.59.2
+## Inference
+
+Chat runs on **llama.cpp**, compiled from source by the `:llm` module:
+
+- `llm/src/main/cpp/CMakeLists.txt` fetches llama.cpp at a pinned release tag via
+  `FetchContent` (nothing is vendored).
+- `llama_bridge.cpp` exposes a small pull-based JNI API — `beginGeneration` /
+  `nextToken` / `endGeneration` — which is what makes **token-by-token
+  streaming** possible. A prebuilt AAR would have meant faking it.
+- Kotlin formats each family's chat template (ChatML, Llama 3, Gemma, Phi-3)
+  before handing the prompt over, so small instruct models get what they expect.
+- ABIs are limited to `arm64-v8a` and `x86_64`; 32-bit devices are not supported.
+- If the native library cannot load, the app degrades to a clear message instead
+  of crashing.
+
+### Vision
+
+Image understanding runs on **libmtmd**, built as a library-only target
+(`LLAMA_BUILD_MTMD=ON` with `LLAMA_BUILD_TOOLS=OFF`) so the whole tools tree is
+skipped.
+
+A multimodal model in llama.cpp is a text model plus a vision projector, and it
+is modelled that way here: loading a vision model loads its GGUF as the resident
+chat model and bolts the `mmproj` onto the same handle. So a loaded vision model
+is also your chat model, and no second copy of the weights is kept in memory.
+The image bytes go straight from memory into mtmd, the marker-aware prompt is
+built with the family's chat template, and decoding streams token by token like
+any other reply.
+
+Image generation is still catalogued and downloadable but has no runtime yet;
+the Models screen says so rather than offering a button that cannot work.
+
+### Attachments stay in the conversation
+
+A shared image or document stays part of the conversation. The picker only hands
+out a transient `content://` URI, so the file is copied into app storage and the
+message row keeps its name; later turns read the same file again *alongside the
+current question*. That is what makes follow-ups ("what colour is it?", "what
+did the second section say?") work without re-attaching anything, and the
+message bubble shows the attachment back so it is clear it is still in context.
+
+Documents are passed whole when short. When long, the model gets the opening
+plus the passages that mention the current question, so a follow-up about
+something far into a file is still answerable. Re-reading stops once an
+attachment falls outside the recent window, and deleting a conversation deletes
+its files.
+
+## Build & release
+
+Local builds are intentionally avoided. Everything is built by GitHub Actions:
+
+- **CI** (`.github/workflows/android-ci.yml`) builds a debug APK on pushes to
+  `main`.
+- **Release** (`.github/workflows/release.yml`) is triggered by a `v*` tag and
+  publishes the APK to GitHub Releases.
+
+Both workflows install NDK `27.2.12479018` and CMake `3.22.1` and cache
+`llm/.cxx`. Compiling llama.cpp for two ABIs is the slow part of the job, so
+expect roughly 10–25 minutes on a cold cache.
 
 ## Privacy
 
-This app is designed with privacy as a core principle:
-
-- **No data collection**: We don't collect any user data
-- **No analytics**: No tracking or analytics services
-- **Local storage**: All conversations and memories stay on your device
-- **Offline first**: Works completely without internet
-- **Open source**: Full source code available for review
+Conversations, memories, images, files and inference are all on-device. Online
+sources are disabled by default and, when enabled, results are fetched through a
+developer-controlled backend — end users are never asked for an API key, and no
+secret is stored in the APK.
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT — see [LICENSE](LICENSE).

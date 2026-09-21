@@ -36,6 +36,8 @@ dependencies {
     val roomVersion = "2.7.2"
     implementation("androidx.room:room-runtime:$roomVersion")
     implementation("androidx.room:room-ktx:$roomVersion")
+    // Needed to declare schema migrations against SupportSQLiteDatabase.
+    implementation("androidx.sqlite:sqlite:2.5.2")
     ksp("androidx.room:room-compiler:$roomVersion")
 
     // Coroutines
@@ -56,6 +58,7 @@ dependencies {
     implementation(composeBom)
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.material:material-icons-extended")
 
     // Core
     implementation("androidx.core:core-ktx:1.15.0")

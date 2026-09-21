@@ -4,17 +4,16 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.ui.Modifier
-import android.content.SharedPreferences
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import com.goldmedal.aillm.ui.AILLMTheme
-import com.goldmedal.aillm.ui.MainScreen
+import androidx.compose.ui.Modifier
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.goldmedal.aillm.core.design.AillmAmbientBackground
+import com.goldmedal.aillm.core.design.AillmTheme
+import com.goldmedal.aillm.ui.AppNav
+import com.goldmedal.aillm.ui.AppViewModel
 import com.goldmedal.aillm.ui.setup.SetupScreen
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -25,25 +24,19 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            AILLMTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    val prefs: SharedPreferences =
-                        androidx.compose.ui.platform.LocalContext.current
-                            .getSharedPreferences("aillm_onboarding", MODE_PRIVATE)
-                    var showSetup by remember { mutableStateOf(prefs.getBoolean("done", false).not()) }
+            val appViewModel: AppViewModel = hiltViewModel()
+            val themeMode by appViewModel.themeMode.collectAsState()
+            val onboarded by appViewModel.isOnboarded.collectAsState()
 
-                    if (showSetup) {
-                        SetupScreen(
-                            onComplete = {
-                                prefs.edit().putBoolean("done", true).apply()
-                                showSetup = false
-                            }
-                        )
-                    } else {
-                        MainScreen()
+            AillmTheme(themeMode = themeMode) {
+                // The whole app is one frosted-glass surface over this layer, so
+                // screens keep transparent Scaffolds instead of painting a fill.
+                Box(modifier = Modifier.fillMaxSize()) {
+                    AillmAmbientBackground()
+                    when (onboarded) {
+                        null -> Box(Modifier.fillMaxSize())
+                        false -> SetupScreen()
+                        true -> AppNav()
                     }
                 }
             }

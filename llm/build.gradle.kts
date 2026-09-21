@@ -7,10 +7,40 @@ plugins {
 android {
     namespace = "com.goldmedal.aillm.ai.llm"
     compileSdk = 35
+    ndkVersion = "27.2.12479018"
 
     defaultConfig {
         minSdk = 26
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Local LLM inference is a 64-bit, memory-hungry workload. Restricting
+        // the ABIs keeps the native build (and the APK) to what can run it.
+        ndk {
+            abiFilters += listOf("arm64-v8a", "x86_64")
+        }
+
+        externalNativeBuild {
+            cmake {
+                arguments += listOf(
+                    "-DCMAKE_BUILD_TYPE=Release",
+                    "-DANDROID_STL=c++_shared"
+                )
+                cppFlags += listOf("-O3", "-fexceptions", "-frtti")
+            }
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
+    }
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging = false
+        }
     }
 
     compileOptions {
@@ -30,10 +60,6 @@ dependencies {
     implementation(project(":ai"))
     implementation(project(":memory"))
 
-    // llama-android: add when available on Maven Central
-    // implementation("dev.ffmpegkit-maintained:llama-android:0.1.1")
-    // Alternative: build from source and include as local module
-    
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 
     implementation("com.google.dagger:hilt-android:2.59.2")

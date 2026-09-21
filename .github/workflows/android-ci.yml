@@ -13,6 +13,10 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # The :llm module compiles llama.cpp from source (NDK + CMake), which is the
+    # slow part of this job. Compiling it is deliberate: on-device inference
+    # needs token streaming, which a prebuilt AAR cannot provide.
+    timeout-minutes: 90
 
     steps:
     - name: Checkout code
@@ -28,6 +32,23 @@ jobs:
       uses: gradle/actions/setup-gradle@v4
       with:
         gradle-version: '9.1.0'
+
+    - name: Install NDK and CMake
+      run: |
+        SDKMANAGER="${ANDROID_HOME:-/usr/local/lib/android/sdk}/cmdline-tools/latest/bin/sdkmanager"
+        if [ ! -x "$SDKMANAGER" ]; then
+          SDKMANAGER="$(find "${ANDROID_HOME:-/usr/local/lib/android/sdk}" -name sdkmanager -type f 2>/dev/null | head -n 1)"
+        fi
+        yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
+        "$SDKMANAGER" "ndk;27.2.12479018" "cmake;3.22.1"
+
+    - name: Cache native build
+      uses: actions/cache@v4
+      with:
+        path: llm/.cxx
+        key: native-${{ runner.os }}-${{ hashFiles('llm/src/main/cpp/**', 'llm/build.gradle.kts') }}
+        restore-keys: |
+          native-${{ runner.os }}-
 
     - name: Build Debug APK
       run: gradle assembleDebug --no-daemon --stacktrace 2>&1 | tee build-session.log

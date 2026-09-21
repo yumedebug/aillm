@@ -18,6 +18,10 @@ out/
 build/
 app/build/
 
+# Native (CMake) build output
+.cxx/
+llm/.cxx/
+
 # Local configuration file
 local.properties
 

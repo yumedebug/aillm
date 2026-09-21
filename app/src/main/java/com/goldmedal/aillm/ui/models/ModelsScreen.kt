@@ -1,7 +1,10 @@
 package com.goldmedal.aillm.ui.models
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,19 +13,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Memory
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -32,173 +30,101 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.goldmedal.aillm.ai.modelmanager.ModelInfo
-
-/**
- * Models tab. Category-first: Chat / Vision / Image Generation.
- * Each model shows install/load state and a download action.
- */
-@Composable
-fun ModelsScreen(
-    viewModel: ModelsViewModel = hiltViewModel()
-) {
-    val chatModels by viewModel.chatModels.collectAsState()
-    val visionModels by viewModel.visionModels.collectAsState()
-    val imageGenModels by viewModel.imageGenModels.collectAsState()
-    val progress by viewModel.downloadProgress.collectAsState()
-    val error by viewModel.error.collectAsState()
-
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        item {
-            Text(
-                "Models",
-                style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.padding(top = 16.dp, bottom = 4.dp)
-            )
-            Text(
-                "Download only the models you want to use. Nothing is auto-downloaded.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
-        error?.let { msg ->
-            item {
-                Text(
-                    msg,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-        }
-
-        item {
-            CategoryHeader("Chat")
-        }
-        items(chatModels.values.toList(), key = { it.name }) { model ->
-            ModelCard(
-                model = model,
-                progress = progress[model.name],
-                onDownload = { /* download chart models wired via engine */  },
-                onLoad = { viewModel.loadModel(model.name) },
-                onUnload = { viewModel.unloadModel(model.name) }
-            )
-        }
-
-        item {
-            CategoryHeader("Vision")
-        }
-        items(visionModels.values.toList(), key = { it.name }) { model ->
-            ModelCard(
-                model = model,
-                progress = progress[model.name],
-                onDownload = { },
-                onLoad = { viewModel.loadModel(model.name) },
-                onUnload = { viewModel.unloadModel(model.name) }
-            )
-        }
-
-        item {
-            CategoryHeader("Image Generation")
-        }
-        items(imageGenModels.values.toList(), key = { it.name }) { model ->
-            ModelCard(
-                model = model,
-                progress = progress[model.name],
-                onDownload = { },
-                onLoad = { viewModel.loadModel(model.name) },
-                onUnload = { viewModel.unloadModel(model.name) }
-            )
-        }
-
-        item { Spacer(Modifier.height(32.dp)) }
-    }
-}
+import com.goldmedal.aillm.ai.model.ModelFit
+import com.goldmedal.aillm.ai.model.ModelKind
+import com.goldmedal.aillm.ai.model.ModelStatus
+import com.goldmedal.aillm.ai.model.isInstalled
+import com.goldmedal.aillm.core.design.AillmGlass
+import com.goldmedal.aillm.core.design.AillmTopBar
+import com.goldmedal.aillm.core.design.BadgeTone
+import com.goldmedal.aillm.core.design.DownloadProgress
+import com.goldmedal.aillm.core.design.EmptyState
+import com.goldmedal.aillm.core.design.PrimaryButton
+import com.goldmedal.aillm.core.design.RatingStars
+import com.goldmedal.aillm.core.design.SectionHeader
+import com.goldmedal.aillm.core.design.Spacing
+import com.goldmedal.aillm.core.design.StatusBadge
+import com.goldmedal.aillm.core.design.formatBytes
+import com.goldmedal.aillm.core.design.glassBorderColor
 
 @Composable
-private fun CategoryHeader(title: String) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 16.dp, bottom = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            Icons.Default.Memory,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary
-        )
-        Spacer(Modifier.width(8.dp))
-        Text(
-            title,
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.primary
-        )
-    }
-    HorizontalDivider()
-}
+fun ModelsScreen(viewModel: ModelsViewModel = hiltViewModel()) {
+    val kind by viewModel.kind.collectAsState()
+    val rows by viewModel.rows.collectAsState()
 
-@Composable
-private fun ModelCard(
-    model: ModelInfo,
-    progress: Float?,
-    onDownload: () -> Unit,
-    onLoad: () -> Unit,
-    onUnload: () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer
-        )
-    ) {
+    val installed = rows.filter { it.status.isInstalled }
+    val available = rows.filterNot { it.status.isInstalled }
+
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            AillmTopBar(
+                title = "Models",
+                subtitle = "Download only the models you want"
+            )
+        }
+    ) { padding ->
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
+                .fillMaxSize()
+                .padding(padding)
         ) {
-            Row(
+            LazyRow(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                contentPadding = PaddingValues(horizontal = Spacing.lg),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
             ) {
-                Text(
-                    model.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f)
-                )
-                StatusBadge(model)
+                items(ModelKind.values().toList()) { item ->
+                    FilterChip(
+                        selected = kind == item,
+                        onClick = { viewModel.selectKind(item) },
+                        label = { Text(item.label) }
+                    )
+                }
             }
 
-            Spacer(Modifier.height(6.dp))
-            Text(
-                model.description,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            if (progress != null) {
-                Spacer(Modifier.height(10.dp))
-                LinearProgressIndicator(
-                    progress = { progress },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Text(
-                    "${(progress * 100).toInt()}%",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            if (rows.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    EmptyState(
+                        icon = Icons.Default.Memory,
+                        title = "Nothing here yet",
+                        message = "Models for this category will appear here as the library grows."
+                    )
+                }
+                return@Column
             }
 
-            if (model.isInstalled) {
-                Spacer(Modifier.height(10.dp))
-                Row {
-                    TextButton(onClick = if (model.isLoaded) onUnload else onLoad) {
-                        Text(if (model.isLoaded) "Unload" else "Load")
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = Spacing.xxl),
+                verticalArrangement = Arrangement.spacedBy(Spacing.sm)
+            ) {
+                if (installed.isNotEmpty()) {
+                    item { SectionHeader("Installed") }
+                    items(installed, key = { it.spec.id }) { row ->
+                        ModelCard(
+                            row = row,
+                            kind = kind,
+                            onDownload = { viewModel.download(row.spec.id) },
+                            onCancel = { viewModel.cancelDownload(row.spec.id) },
+                            onDelete = { viewModel.delete(row.spec.id) },
+                            onLoad = { viewModel.load(row.spec.id) },
+                            onUnload = { viewModel.unload() }
+                        )
+                    }
+                }
+                if (available.isNotEmpty()) {
+                    item { SectionHeader("Available") }
+                    items(available, key = { it.spec.id }) { row ->
+                        ModelCard(
+                            row = row,
+                            kind = kind,
+                            onDownload = { viewModel.download(row.spec.id) },
+                            onCancel = { viewModel.cancelDownload(row.spec.id) },
+                            onDelete = { viewModel.delete(row.spec.id) },
+                            onLoad = { viewModel.load(row.spec.id) },
+                            onUnload = { viewModel.unload() }
+                        )
                     }
                 }
             }
@@ -207,21 +133,200 @@ private fun ModelCard(
 }
 
 @Composable
-private fun StatusBadge(model: ModelInfo) {
-    val (label, color, icon) = when {
-        model.isInstalled && model.isLoaded -> Triple(
-            "Ready", MaterialTheme.colorScheme.primary, Icons.Default.CheckCircle
-        )
-        model.isInstalled -> Triple(
-            "Installed", MaterialTheme.colorScheme.onSurfaceVariant, Icons.Default.CheckCircle
-        )
-        else -> Triple(
-            "Not installed", MaterialTheme.colorScheme.error, Icons.Default.ErrorOutline
-        )
+private fun ModelCard(
+    row: ModelRow,
+    kind: ModelKind,
+    onDownload: () -> Unit,
+    onCancel: () -> Unit,
+    onDelete: () -> Unit,
+    onLoad: () -> Unit,
+    onUnload: () -> Unit
+) {
+    val spec = row.spec
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        shape = MaterialTheme.shapes.large,
+        border = BorderStroke(AillmGlass.borderWidth, glassBorderColor()),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = Spacing.lg)
+    ) {
+        Column(modifier = Modifier.padding(Spacing.lg)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = spec.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f)
+                )
+                if (row.recommended && !row.status.isInstalled) {
+                    StatusBadge("Recommended", BadgeTone.ACCENT)
+                    Spacer(Modifier.width(Spacing.xs))
+                }
+                StatusBadgeFor(row.status)
+            }
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = spec.description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(Spacing.sm))
+            Text(
+                text = "${spec.family} · ${spec.parameters} · ${spec.quantization} · ${formatBytes(spec.downloadBytes)}",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = "Needs ~${formatBytes(spec.minRamBytes)} RAM" +
+                    if (spec.contextLength > 0) " · ${spec.contextLength / 1024}K context" else "",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(2.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "Speed ",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                RatingStars(spec.speedRating)
+                Spacer(Modifier.padding(horizontal = 4.dp))
+                Text(
+                    text = "Quality ",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                RatingStars(spec.qualityRating)
+            }
+
+            when (row.fit) {
+                ModelFit.TOO_HEAVY -> {
+                    Spacer(Modifier.height(Spacing.sm))
+                    Text(
+                        text = "Needs more memory than this device has.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+                ModelFit.NO_STORAGE -> {
+                    Spacer(Modifier.height(Spacing.sm))
+                    Text(
+                        text = "Not enough free storage right now.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+                ModelFit.TIGHT -> {
+                    Spacer(Modifier.height(Spacing.sm))
+                    Text(
+                        text = "Runs, but close to this device's memory limit.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                ModelFit.GOOD -> Unit
+            }
+
+            Spacer(Modifier.height(Spacing.md))
+            when (val status = row.status) {
+                is ModelStatus.Downloading -> DownloadProgress(
+                    progress = status.progress,
+                    downloadedBytes = status.bytesDownloaded,
+                    totalBytes = status.totalBytes,
+                    onCancel = onCancel
+                )
+                is ModelStatus.Verifying -> Text(
+                    text = "Verifying…",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                is ModelStatus.Loading -> Text(
+                    text = "Loading…",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                is ModelStatus.Ready -> Row {
+                    TextButton(onClick = onUnload) { Text("Unload") }
+                    Spacer(Modifier.weight(1f))
+                    TextButton(onClick = onDelete) { Text("Delete") }
+                }
+                is ModelStatus.Installed -> if (spec.kind == ModelKind.IMAGE_GENERATION) {
+                    // Honest state: the weights are here, but no diffusion
+                    // runtime is wired up yet, so there is nothing to load.
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "Image generation is not available in this build yet.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f)
+                        )
+                        TextButton(onClick = onDelete) { Text("Delete") }
+                    }
+                } else {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        PrimaryButton(
+                            text = "Load",
+                            onClick = onLoad,
+                            modifier = Modifier.height(40.dp)
+                        )
+                        Spacer(Modifier.weight(1f))
+                        TextButton(onClick = onDelete) { Text("Delete") }
+                    }
+                }
+                is ModelStatus.Error -> Column {
+                    Text(
+                        text = status.message,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    Spacer(Modifier.height(Spacing.xs))
+                    if (row.isUsable) {
+                        PrimaryButton(
+                            text = "Try again",
+                            onClick = onDownload,
+                            modifier = Modifier.height(40.dp)
+                        )
+                    }
+                }
+                is ModelStatus.NotInstalled -> if (row.isUsable) {
+                    Column {
+                        if (spec.kind == ModelKind.IMAGE_GENERATION) {
+                            Text(
+                                text = "Image generation is not available in this build yet — " +
+                                    "downloading this keeps it ready for when it is.",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(Modifier.height(Spacing.xs))
+                        }
+                        PrimaryButton(
+                            text = "Download ${formatBytes(spec.downloadBytes)}",
+                            onClick = onDownload,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                } else {
+                    Text(
+                        text = "Not suitable for this device",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
     }
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.height(16.dp))
-        Spacer(Modifier.width(4.dp))
-        Text(label, style = MaterialTheme.typography.labelMedium, color = color)
+}
+
+@Composable
+private fun StatusBadgeFor(status: ModelStatus) {
+    when (status) {
+        is ModelStatus.Ready -> StatusBadge("Ready", BadgeTone.SUCCESS)
+        is ModelStatus.Installed -> StatusBadge("Installed", BadgeTone.NEUTRAL)
+        is ModelStatus.Downloading -> StatusBadge("Downloading", BadgeTone.ACCENT)
+        is ModelStatus.Verifying -> StatusBadge("Verifying", BadgeTone.ACCENT)
+        is ModelStatus.Loading -> StatusBadge("Loading", BadgeTone.ACCENT)
+        is ModelStatus.Error -> StatusBadge("Error", BadgeTone.ERROR)
+        is ModelStatus.NotInstalled -> StatusBadge("Not installed", BadgeTone.NEUTRAL)
     }
 }
