@@ -37,7 +37,7 @@ class MainActivity : ComponentActivity() {
 
                     if (showSetup) {
                         SetupScreen(
-                            onFinish = {
+                            onComplete = {
                                 prefs.edit().putBoolean("done", true).apply()
                                 showSetup = false
                             }
