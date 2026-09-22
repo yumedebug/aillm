@@ -1,4 +1,5 @@
 # AILLM
+*常に最新版を入れましょう*
 
 A local-first Android assistant with long-term memory that lives on your phone.
 No model ships inside the APK: you choose what to download, and everything —
