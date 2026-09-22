@@ -1,4 +1,4 @@
-# AILLM — local-first on-device AI (release v1.1.0)
+# AILLM — local-first on-device AI (release v1.2.1)
 
 **Everything runs on your phone. Nothing leaves the device.**
 
