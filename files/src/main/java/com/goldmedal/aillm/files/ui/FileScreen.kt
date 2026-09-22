@@ -24,7 +24,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -37,6 +36,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.goldmedal.aillm.core.database.FileMemoryEntity
 import com.goldmedal.aillm.core.design.AillmTopBar
 import com.goldmedal.aillm.core.design.EmptyState
+import com.goldmedal.aillm.core.design.LiquidGlassSurface
 import com.goldmedal.aillm.core.design.Spacing
 import com.goldmedal.aillm.core.design.formatBytes
 import com.goldmedal.aillm.files.viewmodel.FileViewModel
@@ -112,11 +112,7 @@ private fun FileRow(
     onDelete: () -> Unit
 ) {
     val date = SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(file.createdAt))
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        shape = MaterialTheme.shapes.large,
-        modifier = Modifier.fillMaxWidth()
-    ) {
+    LiquidGlassSurface(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.padding(start = Spacing.lg, end = Spacing.xs, top = Spacing.md, bottom = Spacing.md),
             verticalAlignment = Alignment.CenterVertically

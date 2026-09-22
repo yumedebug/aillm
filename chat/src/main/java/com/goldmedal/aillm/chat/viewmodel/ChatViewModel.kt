@@ -15,6 +15,7 @@ import com.goldmedal.aillm.chat.document.ChatDocumentStore
 import com.goldmedal.aillm.chat.document.DocumentContext
 import com.goldmedal.aillm.chat.image.ChatImageStore
 import com.goldmedal.aillm.chat.repository.ChatRepository
+import com.goldmedal.aillm.chat.session.ChatSessionController
 import com.goldmedal.aillm.core.database.MessageEntity
 import com.goldmedal.aillm.core.preferences.AppSettings
 import com.goldmedal.aillm.memory.MemoryEngine
@@ -28,6 +29,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -50,7 +52,8 @@ class ChatViewModel @Inject constructor(
     private val promptBuilder: PromptBuilder,
     private val appSettings: AppSettings,
     private val chatModel: ChatModel,
-    private val visionModel: VisionModel
+    private val visionModel: VisionModel,
+    private val sessionController: ChatSessionController
 ) : ViewModel() {
 
     private val _currentChatId = MutableStateFlow<Long?>(null)
@@ -91,6 +94,11 @@ class ChatViewModel @Inject constructor(
                     if (id == null) flowOf(emptyList()) else chatRepository.getMessagesByChatId(id)
                 }
                 .collect { _messages.value = it }
+        }
+        // "+ from History" lands here: the request arrives before the user is
+        // back on the Chat tab, so the conversation is cleared ready and waiting.
+        viewModelScope.launch {
+            sessionController.newChatRequests.drop(1).collect { newChat() }
         }
         viewModelScope.launch {
             modelRepository.states.collect { states ->

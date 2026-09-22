@@ -1,6 +1,5 @@
 package com.goldmedal.aillm.ui.models
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,18 +33,17 @@ import com.goldmedal.aillm.ai.model.ModelFit
 import com.goldmedal.aillm.ai.model.ModelKind
 import com.goldmedal.aillm.ai.model.ModelStatus
 import com.goldmedal.aillm.ai.model.isInstalled
-import com.goldmedal.aillm.core.design.AillmGlass
 import com.goldmedal.aillm.core.design.AillmTopBar
 import com.goldmedal.aillm.core.design.BadgeTone
 import com.goldmedal.aillm.core.design.DownloadProgress
 import com.goldmedal.aillm.core.design.EmptyState
+import com.goldmedal.aillm.core.design.LiquidGlassSurface
 import com.goldmedal.aillm.core.design.PrimaryButton
 import com.goldmedal.aillm.core.design.RatingStars
 import com.goldmedal.aillm.core.design.SectionHeader
 import com.goldmedal.aillm.core.design.Spacing
 import com.goldmedal.aillm.core.design.StatusBadge
 import com.goldmedal.aillm.core.design.formatBytes
-import com.goldmedal.aillm.core.design.glassBorderColor
 
 @Composable
 fun ModelsScreen(viewModel: ModelsViewModel = hiltViewModel()) {
@@ -143,10 +141,7 @@ private fun ModelCard(
     onUnload: () -> Unit
 ) {
     val spec = row.spec
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        shape = MaterialTheme.shapes.large,
-        border = BorderStroke(AillmGlass.borderWidth, glassBorderColor()),
+    LiquidGlassSurface(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = Spacing.lg)

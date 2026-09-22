@@ -37,6 +37,7 @@ class AppSettings @Inject constructor(
         val CONTEXT_LENGTH = intPreferencesKey("context_length")
         val ONLINE_SOURCES = booleanPreferencesKey("online_sources_enabled")
         val REDUCE_MOTION = booleanPreferencesKey("reduce_motion")
+        val LAST_MODEL = stringPreferencesKey("last_used_model_id")
     }
 
     val themeMode: Flow<ThemeMode> = context.appSettingsStore.data.map { prefs ->
@@ -60,6 +61,14 @@ class AppSettings @Inject constructor(
         context.appSettingsStore.data.map { it[Keys.ONLINE_SOURCES] ?: false }
 
     val reduceMotion: Flow<Boolean> = context.appSettingsStore.data.map { it[Keys.REDUCE_MOTION] ?: false }
+
+    /**
+     * The model the user had loaded last. The app loads it again on start so
+     * "which model am I using" survives being closed, instead of asking for a
+     * manual load every time.
+     */
+    val lastUsedModelId: Flow<String?> =
+        context.appSettingsStore.data.map { it[Keys.LAST_MODEL]?.takeIf { id -> id.isNotBlank() } }
 
     suspend fun setThemeMode(mode: ThemeMode) {
         context.appSettingsStore.edit { it[Keys.THEME] = mode.name }
@@ -87,5 +96,14 @@ class AppSettings @Inject constructor(
 
     suspend fun setReduceMotion(value: Boolean) {
         context.appSettingsStore.edit { it[Keys.REDUCE_MOTION] = value }
+    }
+
+    suspend fun setLastUsedModelId(id: String) {
+        context.appSettingsStore.edit { it[Keys.LAST_MODEL] = id }
+    }
+
+    /** Forgets the remembered model, e.g. after it has been deleted. */
+    suspend fun clearLastUsedModelId() {
+        context.appSettingsStore.edit { it.remove(Keys.LAST_MODEL) }
     }
 }

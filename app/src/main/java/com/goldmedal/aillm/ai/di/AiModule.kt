@@ -12,6 +12,7 @@ import com.goldmedal.aillm.ai.model.ModelRepository
 import com.goldmedal.aillm.ai.model.ModelRepositoryImpl
 import com.goldmedal.aillm.ai.vision.VisionModel
 import com.goldmedal.aillm.core.database.InstalledModelDao
+import com.goldmedal.aillm.core.preferences.AppSettings
 import com.goldmedal.aillm.memory.embedding.EmbeddingModel
 import dagger.Module
 import dagger.Provides
@@ -56,6 +57,7 @@ object AiModule {
     fun provideModelRepository(
         @ApplicationContext context: Context,
         installedModelDao: InstalledModelDao,
+        appSettings: AppSettings,
         downloader: ModelDownloader,
         chatModel: ChatModel,
         visionModel: VisionModel,
@@ -63,6 +65,7 @@ object AiModule {
     ): ModelRepository = ModelRepositoryImpl(
         context = context,
         installedModelDao = installedModelDao,
+        appSettings = appSettings,
         downloader = downloader,
         chatModel = chatModel,
         visionModel = visionModel,

@@ -3,7 +3,6 @@ package com.goldmedal.aillm.chat.ui
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -58,10 +57,9 @@ import com.goldmedal.aillm.ai.model.ModelStatus
 import com.goldmedal.aillm.chat.image.ChatImageStore
 import com.goldmedal.aillm.chat.viewmodel.ChatViewModel
 import com.goldmedal.aillm.core.database.MessageEntity
-import com.goldmedal.aillm.core.design.AillmGlass
 import com.goldmedal.aillm.core.design.AillmTopBar
+import com.goldmedal.aillm.core.design.LiquidGlassSurface
 import com.goldmedal.aillm.core.design.Spacing
-import com.goldmedal.aillm.core.design.glassBorderColor
 
 @Composable
 fun ChatScreen(
@@ -246,12 +244,7 @@ private fun EmptyChat(modelReady: Boolean, onChooseModel: () -> Unit) {
         )
         if (!modelReady) {
             Spacer(Modifier.height(Spacing.lg))
-            Surface(
-                color = MaterialTheme.colorScheme.surfaceContainer,
-                shape = MaterialTheme.shapes.large,
-                border = BorderStroke(AillmGlass.borderWidth, glassBorderColor()),
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            LiquidGlassSurface(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(Spacing.lg)) {
                     Text(
                         text = "No model yet",
@@ -304,11 +297,7 @@ private fun Composer(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (attachedImage != null) {
-                    Surface(
-                        color = MaterialTheme.colorScheme.surfaceContainer,
-                        shape = MaterialTheme.shapes.medium,
-                        border = BorderStroke(AillmGlass.borderWidth, glassBorderColor())
-                    ) {
+                    LiquidGlassSurface(shape = MaterialTheme.shapes.medium) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             AsyncImage(
                                 model = attachedImage,
@@ -324,11 +313,7 @@ private fun Composer(
                     }
                 }
                 if (attachedFileName != null) {
-                    Surface(
-                        color = MaterialTheme.colorScheme.surfaceContainer,
-                        shape = MaterialTheme.shapes.medium,
-                        border = BorderStroke(AillmGlass.borderWidth, glassBorderColor())
-                    ) {
+                    LiquidGlassSurface(shape = MaterialTheme.shapes.medium) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 text = attachedFileName ?: "",
@@ -345,11 +330,10 @@ private fun Composer(
             }
         }
 
-        Surface(
-            color = MaterialTheme.colorScheme.surfaceContainer,
+        LiquidGlassSurface(
+            modifier = Modifier.fillMaxWidth(),
             shape = MaterialTheme.shapes.extraLarge,
-            border = BorderStroke(AillmGlass.borderWidth, glassBorderColor()),
-            modifier = Modifier.fillMaxWidth()
+            animatedSheen = true
         ) {
             Row(verticalAlignment = Alignment.Bottom) {
                 Box {

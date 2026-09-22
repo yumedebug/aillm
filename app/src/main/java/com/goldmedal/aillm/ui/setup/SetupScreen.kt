@@ -1,6 +1,5 @@
 package com.goldmedal.aillm.ui.setup
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -14,7 +13,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -25,9 +23,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.goldmedal.aillm.ai.model.ModelFit
 import com.goldmedal.aillm.ai.model.ModelStatus
-import com.goldmedal.aillm.core.design.AillmGlass
 import com.goldmedal.aillm.core.design.BadgeTone
 import com.goldmedal.aillm.core.design.DownloadProgress
+import com.goldmedal.aillm.core.design.LiquidGlassSurface
 import com.goldmedal.aillm.core.design.PrimaryButton
 import com.goldmedal.aillm.core.design.RatingStars
 import com.goldmedal.aillm.core.design.SectionHeader
@@ -35,7 +33,6 @@ import com.goldmedal.aillm.core.design.Spacing
 import com.goldmedal.aillm.core.design.StatusBadge
 import com.goldmedal.aillm.core.design.TextAction
 import com.goldmedal.aillm.core.design.formatBytes
-import com.goldmedal.aillm.core.design.glassBorderColor
 
 /**
  * First-run wizard. It never downloads anything by itself — it reads the real
@@ -134,10 +131,7 @@ fun SetupScreen(viewModel: SetupViewModel = hiltViewModel()) {
 @Composable
 private fun DeviceCard(viewModel: SetupViewModel) {
     val profile = viewModel.profile
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        shape = MaterialTheme.shapes.large,
-        border = BorderStroke(AillmGlass.borderWidth, glassBorderColor()),
+    LiquidGlassSurface(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = Spacing.lg)
@@ -188,10 +182,7 @@ private fun SetupModelCard(
     onCancel: () -> Unit
 ) {
     val spec = row.spec
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        shape = MaterialTheme.shapes.large,
-        border = BorderStroke(AillmGlass.borderWidth, glassBorderColor()),
+    LiquidGlassSurface(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = Spacing.lg)

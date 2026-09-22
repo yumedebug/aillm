@@ -7,6 +7,7 @@ import com.goldmedal.aillm.ai.imagegeneration.ImageGenerationModel
 import com.goldmedal.aillm.ai.vision.VisionModel
 import com.goldmedal.aillm.core.database.InstalledModelDao
 import com.goldmedal.aillm.core.database.InstalledModelEntity
+import com.goldmedal.aillm.core.preferences.AppSettings
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -16,6 +17,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.io.File
@@ -26,6 +28,7 @@ import javax.inject.Singleton
 class ModelRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context,
     private val installedModelDao: InstalledModelDao,
+    private val appSettings: AppSettings,
     private val downloader: ModelDownloader,
     private val chatModel: ChatModel,
     private val visionModel: VisionModel,
@@ -79,6 +82,27 @@ class ModelRepositoryImpl @Inject constructor(
             }
         }
         _states.update { it + map }
+        restoreLastModel()
+    }
+
+    /**
+     * Brings back the model that was loaded when the app was last closed.
+     *
+     * Without this the user would have to pick and load a model on every
+     * launch, which is exactly the friction this app is supposed to remove. A
+     * model that is no longer installed simply forgets itself.
+     */
+    private suspend fun restoreLastModel() {
+        val lastId = runCatching { appSettings.lastUsedModelId.first() }.getOrNull() ?: return
+        val spec = ModelCatalog.byId(lastId) ?: return
+        if (spec.kind == ModelKind.IMAGE_GENERATION) return
+        if (!status(lastId).isInstalled) {
+            runCatching { appSettings.clearLastUsedModelId() }
+            return
+        }
+        // Loading is best effort: a device that no longer has the memory for it
+        // keeps working, just without a resident model.
+        runCatching { load(lastId) }
     }
 
     // ---- download ----
@@ -139,6 +163,11 @@ class ModelRepositoryImpl @Inject constructor(
             spec.auxiliaryFiles.forEach { runCatching { downloader.tempFileFor(it.fileName).delete() } }
             installedModelDao.deleteById(id)
         }
+        // A deleted model must not be remembered, or the next launch would try
+        // to restore something that is gone.
+        runCatching {
+            if (appSettings.lastUsedModelId.first() == id) appSettings.clearLastUsedModelId()
+        }
         set(id, ModelStatus.NotInstalled)
         return Result.success(Unit)
     }
@@ -181,6 +210,8 @@ class ModelRepositoryImpl @Inject constructor(
             .onSuccess {
                 loadedIds[spec.kind] = id
                 runCatching { installedModelDao.touch(id) }
+                // Remembered so the next launch can bring the same model back.
+                runCatching { appSettings.setLastUsedModelId(id) }
                 set(id, ModelStatus.Ready)
             }
             .onFailure { error ->

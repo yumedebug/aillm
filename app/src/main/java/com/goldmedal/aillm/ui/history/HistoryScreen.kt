@@ -1,6 +1,5 @@
 package com.goldmedal.aillm.ui.history
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,13 +13,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -34,6 +33,9 @@ import com.goldmedal.aillm.chat.viewmodel.HistoryViewModel
 import com.goldmedal.aillm.core.database.ChatEntity
 import com.goldmedal.aillm.core.design.AillmTopBar
 import com.goldmedal.aillm.core.design.EmptyState
+import com.goldmedal.aillm.core.design.LiquidAppear
+import com.goldmedal.aillm.core.design.LiquidGlassFab
+import com.goldmedal.aillm.core.design.LiquidGlassSurface
 import com.goldmedal.aillm.core.design.Spacing
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -42,13 +44,26 @@ import java.util.Locale
 @Composable
 fun HistoryScreen(
     onOpenChat: (Long) -> Unit,
+    onNewChat: () -> Unit,
     viewModel: HistoryViewModel = hiltViewModel()
 ) {
     val chats by viewModel.chats.collectAsState()
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
-        topBar = { AillmTopBar(title = "History", subtitle = "Your conversations stay on this device") }
+        topBar = { AillmTopBar(title = "History", subtitle = "Your conversations stay on this device") },
+        floatingActionButton = {
+            // Start a new conversation without going back to the Chat tab first:
+            // the controller clears it, this navigates to it.
+            LiquidGlassFab(
+                onClick = {
+                    viewModel.startNewChat()
+                    onNewChat()
+                },
+                icon = Icons.Default.Add,
+                contentDescription = "New chat"
+            )
+        }
     ) { padding ->
         if (chats.isEmpty()) {
             Box(
@@ -60,23 +75,28 @@ fun HistoryScreen(
                 EmptyState(
                     icon = Icons.Default.ChatBubbleOutline,
                     title = "No conversations yet",
-                    message = "Once you start talking with your assistant, every conversation is saved here — privately, on your phone."
+                    message = "Once you start talking with your assistant, every conversation is saved here — privately, on your phone. Tap + to begin."
                 )
             }
         } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentPadding = PaddingValues(horizontal = Spacing.lg, vertical = Spacing.sm),
-                verticalArrangement = Arrangement.spacedBy(Spacing.sm)
-            ) {
-                items(chats, key = { it.id }) { chat ->
-                    HistoryRow(
-                        chat = chat,
-                        onClick = { onOpenChat(chat.id) },
-                        onDelete = { viewModel.deleteChat(chat.id) }
-                    )
+            LiquidAppear(modifier = Modifier.padding(padding)) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        start = Spacing.lg,
+                        end = Spacing.lg,
+                        top = Spacing.sm,
+                        bottom = Spacing.xxl + 72.dp
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.sm)
+                ) {
+                    items(chats, key = { it.id }) { chat ->
+                        HistoryRow(
+                            chat = chat,
+                            onClick = { onOpenChat(chat.id) },
+                            onDelete = { viewModel.deleteChat(chat.id) }
+                        )
+                    }
                 }
             }
         }
@@ -90,15 +110,17 @@ private fun HistoryRow(
     onDelete: () -> Unit
 ) {
     val date = SimpleDateFormat("MMM d, HH:mm", Locale.getDefault()).format(Date(chat.updatedAt))
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        shape = MaterialTheme.shapes.large,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
+    LiquidGlassSurface(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick
     ) {
         Row(
-            modifier = Modifier.padding(start = Spacing.lg, end = Spacing.xs, top = Spacing.sm, bottom = Spacing.sm),
+            modifier = Modifier.padding(
+                start = Spacing.lg,
+                end = Spacing.xs,
+                top = Spacing.sm,
+                bottom = Spacing.sm
+            ),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {

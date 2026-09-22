@@ -1,6 +1,5 @@
 package com.goldmedal.aillm.core.design
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -119,10 +118,7 @@ fun SettingsGroup(
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         if (title != null) SectionHeader(title)
-        Surface(
-            color = MaterialTheme.colorScheme.surfaceContainer,
-            shape = MaterialTheme.shapes.large,
-            border = BorderStroke(AillmGlass.borderWidth, glassBorderColor()),
+        LiquidGlassSurface(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = Spacing.lg)
@@ -380,20 +376,18 @@ fun glassBorderColor(): Color =
         Color.White.copy(alpha = AillmGlass.BorderAlphaLight)
     }
 
-/** A translucent panel with the design system's hairline edge. */
+/**
+ * A translucent panel with the design system's refraction gradient and rim
+ * light. Kept as the low-level primitive; [LiquidGlassSurface] is the one to
+ * reach for when the panel should also react to touch.
+ */
 @Composable
 fun GlassSurface(
     modifier: Modifier = Modifier,
     shape: Shape = MaterialTheme.shapes.large,
-    color: Color = MaterialTheme.colorScheme.surfaceContainer,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Surface(
-        color = color,
-        shape = shape,
-        border = BorderStroke(AillmGlass.borderWidth, glassBorderColor()),
-        modifier = modifier
-    ) {
+    LiquidGlassSurface(modifier = modifier, shape = shape) {
         Column(content = content)
     }
 }

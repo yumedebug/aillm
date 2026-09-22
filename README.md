@@ -46,6 +46,17 @@ loading. Downloads are resumable and cancellable, and vision models pull their
 `mmproj` projector in the same operation — only a fully verified set counts as
 installed.
 
+The chat library spans 0.5B to 7B, so a budget phone has something it can
+truly run: **Qwen2.5 0.5B Instruct** (~0.5 GB) and **Gemma 3 1B IT** (~0.8 GB)
+are the lightest entries, alongside Qwen2.5 1.5B/3B/7B, Gemma 2 2B, Llama 3.2
+3B and Phi-3.5 Mini.
+
+A model does not have to be re-loaded after the app is closed. The id of the
+last model that finished loading is kept in `AppSettings`, and on the next
+launch `ModelRepositoryImpl.restore()` loads it again — assuming it is still
+installed. Deleting a model forgets it, so nothing is ever restored that is not
+on disk.
+
 The setup wizard shows three device-aware shortlists — **Chat, Coding and
 Images** — three models each, and installs only what the user picks.
 
@@ -61,20 +72,36 @@ search/     WebSearchClient abstraction + default-OFF online sources flag
 chat/       Chat UI, streaming view model, message history
 settings/   Grouped settings screens
 files/      File import and text extraction
+onnx/       String-in / score-out ONNX sequence classifiers
 ```
 
 Tech: Kotlin, Jetpack Compose, Material 3 (with a custom design system), Hilt,
-Room, DataStore, OkHttp, Coil, llama.cpp.
+Room, DataStore, OkHttp, Coil, llama.cpp, ONNX Runtime.
 
 ## Design language
 
 The app is one frosted-glass surface floating on a heavily blurred gradient.
 Screens keep a **transparent** Scaffold container, so the ambient layer is what
 every panel sits on; panels are separated from it by a hairline highlight rather
-than a drop shadow. Implementation is dependency-free: `Modifier.blur` for the
-ambient orbs, translucent surface colours in the colour scheme, and the shared
-`GlassSurface` / `glassBorderColor()` building blocks. The bottom navigation is a
-single floating pill with four destinations.
+than a drop shadow.
+
+On top of that sits a **liquid-glass** layer (`core/design/LiquidGlass.kt`) with
+the two things that make glass read as glass rather than as a flat translucent
+card:
+
+- a specular sheen that travels across a panel, so the surface behaves like it
+  is refracting a moving light source, and
+- a springy, slightly overshooting press response instead of a Material ripple,
+  so a touch displaces the surface.
+
+`LiquidGlassSurface` (panels, history rows, model cards, settings groups),
+`LiquidGlassFab` (the **+** on History and the **+** on Memory) and
+`LiquidAppear` (fade-and-settle on entry) are the building blocks; the bottom
+navigation is a single floating pill with four destinations whose selection
+pill springs in. Everything is dependency-free: `Modifier.border` with a
+gradient brush, springs from `animateFloatAsState`, and one `InfiniteTransition`
+for the sheen — opt-in per surface, because an endless animation on every row
+would be a waste of frames.
 
 ## Memory
 
@@ -142,6 +169,21 @@ any other reply.
 
 Image generation is still catalogued and downloadable but has no runtime yet;
 the Models screen says so rather than offering a button that cannot work.
+
+### Sequence classifiers (`:onnx`)
+
+`llm/` covers generative models. A different job — "is this text a refund
+request, a complaint, a complaint about a refund?" — is a *sequence
+classification* model, and those run on ONNX Runtime instead.
+
+Implementing a Hugging Face tokenizer in Kotlin is the part that makes this
+painful, so it is not done at all: `onnx/export/export_tokenizer_model.py`
+converts the tokenizer to ONNX custom operators with
+`onnxruntime-extensions` and merges it into the model graph, producing a single
+file whose input is `tensor(string)` and whose output is Float logits.
+`StringOnnxClassifier` then feeds it text and returns scores, registering the
+extensions library so the tokenizer node resolves. See [`onnx/README.md`](onnx/README.md)
+for the export command and the Kotlin usage.
 
 ### Attachments stay in the conversation
 

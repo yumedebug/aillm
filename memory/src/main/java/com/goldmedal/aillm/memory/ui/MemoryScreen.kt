@@ -21,13 +21,11 @@ import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -45,6 +43,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.goldmedal.aillm.core.database.UserMemoryEntity
 import com.goldmedal.aillm.core.design.AillmTopBar
 import com.goldmedal.aillm.core.design.EmptyState
+import com.goldmedal.aillm.core.design.LiquidGlassFab
+import com.goldmedal.aillm.core.design.LiquidGlassSurface
 import com.goldmedal.aillm.core.design.Spacing
 import com.goldmedal.aillm.core.design.StatusBadge
 import com.goldmedal.aillm.core.design.BadgeTone
@@ -91,13 +91,11 @@ fun MemoryScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
+            LiquidGlassFab(
                 onClick = { showAdd = true },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Add memory")
-            }
+                icon = Icons.Default.Add,
+                contentDescription = "Add memory"
+            )
         }
     ) { padding ->
         Column(
@@ -159,8 +157,7 @@ fun MemoryScreen(
             }
 
             notice?.let { message ->
-                Surface(
-                    color = MaterialTheme.colorScheme.surfaceContainer,
+                LiquidGlassSurface(
                     shape = MaterialTheme.shapes.medium,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -252,11 +249,7 @@ fun MemoryCard(
     val date = remember(memory.updatedAt) {
         SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(memory.updatedAt))
     }
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        shape = MaterialTheme.shapes.large,
-        modifier = Modifier.fillMaxWidth()
-    ) {
+    LiquidGlassSurface(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(Spacing.lg)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 StatusBadge(text = memory.category.lowercase(), tone = BadgeTone.ACCENT)

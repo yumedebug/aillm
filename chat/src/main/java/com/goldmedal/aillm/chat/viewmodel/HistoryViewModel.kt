@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.goldmedal.aillm.chat.document.ChatDocumentStore
 import com.goldmedal.aillm.chat.image.ChatImageStore
 import com.goldmedal.aillm.chat.repository.ChatRepository
+import com.goldmedal.aillm.chat.session.ChatSessionController
 import com.goldmedal.aillm.core.database.ChatEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -25,7 +26,8 @@ import javax.inject.Inject
 @HiltViewModel
 class HistoryViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val chatRepository: ChatRepository
+    private val chatRepository: ChatRepository,
+    private val sessionController: ChatSessionController
 ) : ViewModel() {
 
     private val _chats = MutableStateFlow<List<ChatEntity>>(emptyList())
@@ -40,6 +42,14 @@ class HistoryViewModel @Inject constructor(
                 .catch { e -> _error.value = e.message }
                 .collect { chats -> _chats.value = chats }
         }
+    }
+
+    /**
+     * Asks the Chat tab to drop whatever it is showing, so the screen the user
+     * lands on after tapping + is a genuinely empty conversation.
+     */
+    fun startNewChat() {
+        sessionController.requestNewChat()
     }
 
     fun deleteChat(chatId: Long) {

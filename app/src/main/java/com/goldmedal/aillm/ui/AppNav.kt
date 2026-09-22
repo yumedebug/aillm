@@ -1,8 +1,17 @@
 package com.goldmedal.aillm.ui
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -20,14 +29,14 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -39,9 +48,10 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.goldmedal.aillm.BuildConfig
 import com.goldmedal.aillm.chat.ui.ChatScreen
-import com.goldmedal.aillm.core.design.AillmGlass
+import com.goldmedal.aillm.core.design.AillmMotion
+import com.goldmedal.aillm.core.design.LiquidGlassSurface
 import com.goldmedal.aillm.core.design.Spacing
-import com.goldmedal.aillm.core.design.glassBorderColor
+import com.goldmedal.aillm.core.design.liquidPress
 import com.goldmedal.aillm.files.ui.FileScreen
 import com.goldmedal.aillm.memory.ui.MemoryScreen
 import com.goldmedal.aillm.settings.ui.AboutScreen
@@ -129,7 +139,12 @@ fun AppNav() {
                 )
             }
             composable(AppRoutes.HISTORY) {
-                HistoryScreen(onOpenChat = ::openChat)
+                HistoryScreen(
+                    onOpenChat = ::openChat,
+                    // The controller bumped by HistoryViewModel clears the Chat
+                    // tab, so landing there is a genuinely new conversation.
+                    onNewChat = { navigateTopLevel(AppRoutes.CHAT) }
+                )
             }
             composable(AppRoutes.MODELS) {
                 ModelsScreen()
@@ -194,6 +209,10 @@ fun AppNav() {
 /**
  * A floating glass pill rather than a full-width bar: four destinations only,
  * and the ambient gradient stays visible around it.
+ *
+ * The selected destination is a translucent accent pill whose colour and width
+ * spring in, so switching tabs reads as liquid filling the space rather than a
+ * hard swap of backgrounds.
  */
 @Composable
 private fun AppBottomBar(currentRoute: String?, onSelect: (String) -> Unit) {
@@ -210,11 +229,10 @@ private fun AppBottomBar(currentRoute: String?, onSelect: (String) -> Unit) {
             .navigationBarsPadding()
             .padding(start = Spacing.lg, end = Spacing.lg, bottom = Spacing.md)
     ) {
-        Surface(
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
+        LiquidGlassSurface(
+            modifier = Modifier.fillMaxWidth(),
             shape = MaterialTheme.shapes.extraLarge,
-            border = BorderStroke(AillmGlass.borderWidth, glassBorderColor()),
-            modifier = Modifier.fillMaxWidth()
+            animatedSheen = true
         ) {
             Row(
                 modifier = Modifier
@@ -225,15 +243,27 @@ private fun AppBottomBar(currentRoute: String?, onSelect: (String) -> Unit) {
             ) {
                 items.forEach { item ->
                     val selected = currentRoute == item.route
+                    val interactionSource = remember { MutableInteractionSource() }
+                    val fill by animateFloatAsState(
+                        targetValue = if (selected) 1f else 0f,
+                        animationSpec = spring(
+                            dampingRatio = 0.55f,
+                            stiffness = Spring.StiffnessMediumLow
+                        ),
+                        label = "bottomBarSelection"
+                    )
                     Box(
                         modifier = Modifier
                             .weight(1f)
                             .clip(MaterialTheme.shapes.large)
+                            .liquidPress(interactionSource, pressedScale = 0.94f)
+                            .clickable(interactionSource = interactionSource, indication = null) {
+                                onSelect(item.route)
+                            }
                             .background(
-                                if (selected) MaterialTheme.colorScheme.primaryContainer
-                                else Color.Transparent
+                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = fill),
+                                MaterialTheme.shapes.large
                             )
-                            .clickable { onSelect(item.route) }
                             .padding(vertical = Spacing.sm),
                         contentAlignment = Alignment.Center
                     ) {
@@ -241,20 +271,28 @@ private fun AppBottomBar(currentRoute: String?, onSelect: (String) -> Unit) {
                             Icon(
                                 imageVector = item.icon,
                                 contentDescription = item.label,
-                                tint = if (selected) {
-                                    MaterialTheme.colorScheme.onPrimaryContainer
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                },
+                                tint = lerp(
+                                    MaterialTheme.colorScheme.onSurfaceVariant,
+                                    MaterialTheme.colorScheme.onPrimaryContainer,
+                                    fill
+                                ),
                                 modifier = Modifier.size(18.dp)
                             )
-                            if (selected) {
-                                Spacer(Modifier.width(Spacing.xs))
-                                Text(
-                                    text = item.label,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
+                            AnimatedVisibility(
+                                visible = selected,
+                                enter = fadeIn(tween(AillmMotion.fast)) +
+                                    expandHorizontally(tween(AillmMotion.medium), expandFrom = Alignment.Start),
+                                exit = fadeOut(tween(AillmMotion.fast)) +
+                                    shrinkHorizontally(tween(AillmMotion.fast), shrinkTowards = Alignment.Start)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Spacer(Modifier.width(Spacing.xs))
+                                    Text(
+                                        text = item.label,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                }
                             }
                         }
                     }

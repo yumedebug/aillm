@@ -54,6 +54,11 @@ secrets.properties
 *.pt
 *.onnx
 
+# Python bytecode from the ONNX export scripts (onnx/export/)
+__pycache__/
+*.pyc
+.venv/
+
 # Log files
 *.log
 
