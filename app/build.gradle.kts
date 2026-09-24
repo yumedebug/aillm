@@ -14,8 +14,8 @@ android {
         applicationId = "com.goldmedal.aillm"
         minSdk = 26
         targetSdk = 35
-        versionCode = 4
-        versionName = "1.2.1"
+        versionCode = 5
+        versionName = "1.3.0"
 
         // Developer-controlled search backend. Empty by default: online sources
         // stay inactive, and no secret is ever shipped in the APK.
