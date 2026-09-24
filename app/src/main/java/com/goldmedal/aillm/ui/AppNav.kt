@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -62,10 +63,13 @@ import com.goldmedal.aillm.settings.ui.OnlineSourcesScreen
 import com.goldmedal.aillm.settings.ui.SettingsDestination
 import com.goldmedal.aillm.settings.ui.SettingsScreen
 import com.goldmedal.aillm.settings.ui.StorageScreen
+import com.goldmedal.aillm.ui.decision.DecisionScreen
 import com.goldmedal.aillm.ui.history.HistoryScreen
 import com.goldmedal.aillm.ui.models.ModelsScreen
 
 object AppRoutes {
+    // VON is the app's front door: the decision screen is where the app opens.
+    const val DECISION = "decision"
     const val CHAT = "chat"
     const val CHAT_WITH_ID = "chat/{chatId}"
     const val HISTORY = "history"
@@ -84,6 +88,7 @@ object AppRoutes {
 }
 
 private val topLevelRoutes = setOf(
+    AppRoutes.DECISION,
     AppRoutes.CHAT,
     AppRoutes.HISTORY,
     AppRoutes.MODELS,
@@ -109,6 +114,10 @@ fun AppNav() {
         navController.navigate(AppRoutes.chat(chatId)) { launchSingleTop = true }
     }
 
+    fun openDecision() {
+        navController.navigate(AppRoutes.DECISION) { launchSingleTop = true }
+    }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
@@ -119,13 +128,17 @@ fun AppNav() {
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = AppRoutes.CHAT,
+            startDestination = AppRoutes.DECISION,
             modifier = Modifier.padding(innerPadding)
         ) {
+            composable(AppRoutes.DECISION) {
+                DecisionScreen()
+            }
             composable(AppRoutes.CHAT) {
                 ChatScreen(
                     onOpenModels = { navigateTopLevel(AppRoutes.MODELS) },
-                    onOpenMemory = { navController.navigate(AppRoutes.MEMORY) }
+                    onOpenMemory = { navController.navigate(AppRoutes.MEMORY) },
+                    onOpenDecision = ::openDecision
                 )
             }
             composable(
@@ -135,7 +148,8 @@ fun AppNav() {
                 ChatScreen(
                     chatId = entry.arguments?.getLong("chatId"),
                     onOpenModels = { navigateTopLevel(AppRoutes.MODELS) },
-                    onOpenMemory = { navController.navigate(AppRoutes.MEMORY) }
+                    onOpenMemory = { navController.navigate(AppRoutes.MEMORY) },
+                    onOpenDecision = ::openDecision
                 )
             }
             composable(AppRoutes.HISTORY) {
@@ -217,6 +231,7 @@ fun AppNav() {
 @Composable
 private fun AppBottomBar(currentRoute: String?, onSelect: (String) -> Unit) {
     val items = listOf(
+        BottomItem(AppRoutes.DECISION, "VON", Icons.Default.ThumbUp),
         BottomItem(AppRoutes.CHAT, "Chat", Icons.Default.ChatBubbleOutline),
         BottomItem(AppRoutes.HISTORY, "History", Icons.Default.History),
         BottomItem(AppRoutes.MODELS, "Models", Icons.Default.Memory),

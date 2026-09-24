@@ -26,10 +26,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.ExperimentalTextApi
+import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.dp
 
 /**
@@ -145,8 +149,15 @@ private fun CodeBlock(block: MdBlock.Code, background: Color) {
     }
 }
 
-private fun inlineStyled(text: String, codeBackground: Color, codeAccent: Color): AnnotatedString =
-    buildAnnotatedString {
+/**
+ * Bold, inline code and bare URLs. A URL is a link so a search the app handed
+ * back as text (see the web-search fallback) stays tappable in the transcript.
+ */
+@OptIn(ExperimentalTextApi::class)
+@Composable
+private fun inlineStyled(text: String, codeBackground: Color, codeAccent: Color): AnnotatedString {
+    val linkColor = MaterialTheme.colorScheme.primary
+    return buildAnnotatedString {
         var index = 0
         while (index < text.length) {
             when {
@@ -182,6 +193,22 @@ private fun inlineStyled(text: String, codeBackground: Color, codeAccent: Color)
                     }
                 }
 
+                text.startsWith("http://", index) || text.startsWith("https://", index) -> {
+                    // A URL runs to the next space (or the end of the block).
+                    val offset = text.substring(index).indexOfFirst { it.isWhitespace() }
+                    val end = if (offset < 0) text.length else index + offset
+                    // Trailing punctuation belongs to the sentence, not the URL.
+                    val url = text.substring(index, end).trimEnd('.', ',', ')', ';', ':', '!', '?')
+                    withLink(LinkAnnotation.Url(url)) {
+                        pushStyle(
+                            SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline)
+                        )
+                        append(url)
+                        pop()
+                    }
+                    index += url.length
+                }
+
                 else -> {
                     append(text[index])
                     index++
@@ -189,6 +216,7 @@ private fun inlineStyled(text: String, codeBackground: Color, codeAccent: Color)
             }
         }
     }
+}
 
 internal sealed interface MdBlock {
     data class Paragraph(val text: String) : MdBlock

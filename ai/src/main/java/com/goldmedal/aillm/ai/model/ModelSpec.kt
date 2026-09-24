@@ -1,5 +1,6 @@
 package com.goldmedal.aillm.ai.model
 
+import com.goldmedal.aillm.ai.decision.VON_MODEL_ID
 import com.goldmedal.aillm.ai.prompt.ChatPromptFormat
 
 /** The independent model roles. Each one is loaded separately, on demand. */
@@ -7,7 +8,8 @@ enum class ModelKind(val label: String, val blurb: String) {
     CHAT("Chat", "Everyday conversation and questions"),
     CODING("Coding", "Writing, reviewing and explaining code"),
     VISION("Vision", "Understanding images you send"),
-    IMAGE_GENERATION("Images", "Generating pictures from text")
+    IMAGE_GENERATION("Images", "Generating pictures from text"),
+    DECISION("Decision", "Judging a proposition Yes or No")
 }
 
 /**
@@ -285,6 +287,52 @@ object ModelCatalog {
             qualityRating = 5,
             description = "Serious coding quality for flagship devices.",
             tags = listOf("high quality", "heavy")
+        ),
+
+        // ------------------------------------------------------------ Decision
+        ModelSpec(
+            id = VON_MODEL_ID,
+            name = "Von",
+            family = "wfzyx",
+            kind = ModelKind.DECISION,
+            parameters = "395M",
+            quantization = "F32",
+            fileName = "model.safetensors",
+            downloadUrl = "https://huggingface.co/wfzyx/von/resolve/main/model.safetensors",
+            sizeBytes = 1_583_355_740L,
+            // The config carries the head's label order (entailment / neutral /
+            // contradiction); calibration.json carries the temperature the
+            // authors fitted on their validation set.
+            auxiliaryFiles = listOf(
+                ModelFile(
+                    fileName = "config.json",
+                    url = "https://huggingface.co/wfzyx/von/resolve/main/config.json",
+                    sizeBytes = 6_349L
+                ),
+                ModelFile(
+                    fileName = "tokenizer.json",
+                    url = "https://huggingface.co/wfzyx/von/resolve/main/tokenizer.json",
+                    sizeBytes = 3_583_485L
+                ),
+                ModelFile(
+                    fileName = "tokenizer_config.json",
+                    url = "https://huggingface.co/wfzyx/von/resolve/main/tokenizer_config.json",
+                    sizeBytes = 599L
+                ),
+                ModelFile(
+                    fileName = "calibration.json",
+                    url = "https://huggingface.co/wfzyx/von/resolve/main/calibration.json",
+                    sizeBytes = 126L
+                )
+            ),
+            minRamBytes = 6 * GB,
+            recommendedRamBytes = 8 * GB,
+            contextLength = 2048,
+            speedRating = 4,
+            qualityRating = 4,
+            description = "Answers Yes or No rather than chatting: is this true, " +
+                "is it a good idea? One pass, no prose.",
+            tags = listOf("decision", "yes/no")
         ),
 
         // -------------------------------------------------------------- Vision

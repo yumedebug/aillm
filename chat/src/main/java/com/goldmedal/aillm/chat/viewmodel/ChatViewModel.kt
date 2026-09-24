@@ -16,10 +16,14 @@ import com.goldmedal.aillm.chat.document.DocumentContext
 import com.goldmedal.aillm.chat.image.ChatImageStore
 import com.goldmedal.aillm.chat.repository.ChatRepository
 import com.goldmedal.aillm.chat.session.ChatSessionController
+import com.goldmedal.aillm.chat.websearch.WebSearchFallback
 import com.goldmedal.aillm.core.database.MessageEntity
 import com.goldmedal.aillm.core.preferences.AppSettings
 import com.goldmedal.aillm.memory.MemoryEngine
 import com.goldmedal.aillm.memory.extraction.MemoryExtractor
+import com.goldmedal.aillm.search.BrowserSearchLauncher
+import com.goldmedal.aillm.search.BrowserSearchOutcome
+import com.goldmedal.aillm.search.SearchQueryDetector
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
@@ -53,7 +57,8 @@ class ChatViewModel @Inject constructor(
     private val appSettings: AppSettings,
     private val chatModel: ChatModel,
     private val visionModel: VisionModel,
-    private val sessionController: ChatSessionController
+    private val sessionController: ChatSessionController,
+    private val browserSearchLauncher: BrowserSearchLauncher
 ) : ViewModel() {
 
     private val _currentChatId = MutableStateFlow<Long?>(null)
@@ -84,6 +89,13 @@ class ChatViewModel @Inject constructor(
 
     private val _chatModelName = MutableStateFlow<String?>(null)
     val chatModelName: StateFlow<String?> = _chatModelName.asStateFlow()
+
+    /**
+     * Set only when a search could not be handed to a browser. It is what backs
+     * the "tap the link / copy the query" card; the normal case leaves it null.
+     */
+    private val _webSearch = MutableStateFlow<WebSearchFallback?>(null)
+    val webSearch: StateFlow<WebSearchFallback?> = _webSearch.asStateFlow()
 
     private var generationJob: Job? = null
 
@@ -120,6 +132,7 @@ class ChatViewModel @Inject constructor(
         _attachedFileUri.value = null
         _attachedFileName.value = null
         _error.value = null
+        _webSearch.value = null
     }
 
     fun loadChat(chatId: Long) {
@@ -170,6 +183,15 @@ class ChatViewModel @Inject constructor(
     fun sendMessage(rawText: String) {
         val text = rawText.trim()
         if (text.isBlank() || _isGenerating.value) return
+
+        // A web lookup is its own path, independent of the conversation: no
+        // written answer is produced, so it is not gated on a loaded chat model
+        // and the browser does the reading.
+        if (SearchQueryDetector.needsSearch(text)) {
+            startWebSearch(text)
+            return
+        }
+
         if (!isChatModelReady()) {
             _error.value = "Choose and load a chat model to start talking."
             return
@@ -237,6 +259,116 @@ class ChatViewModel @Inject constructor(
         generationJob?.cancel()
         generationJob = null
     }
+
+    // ---- web search ----
+
+    fun dismissWebSearch() {
+        _webSearch.value = null
+    }
+
+    /**
+     * Opens the URL the fallback card is showing. If nothing accepts it the card
+     * stays and an error explains why, rather than the tap doing nothing.
+     */
+    fun openWebSearchUrl(url: String) {
+        if (browserSearchLauncher.openUrl(url)) {
+            _webSearch.value = null
+        } else {
+            _error.value = "No browser accepted that link. Copy it instead."
+        }
+    }
+
+    /**
+     * Web search, kept separate from the conversation: the chat model is asked
+     * for a query and nothing else, and the query is handed to the device's
+     * browser. Results are never fetched or parsed here — the user reads them in
+     * the browser.
+     */
+    private fun startWebSearch(text: String) {
+        generationJob = viewModelScope.launch {
+            _isGenerating.value = true
+            _error.value = null
+            _webSearch.value = null
+            try {
+                val chatId = _currentChatId.value
+                    ?: chatRepository.createChat().also { _currentChatId.value = it }
+                val isFirst = chatRepository.getMessageCount(chatId) == 0
+                chatRepository.insertMessage(
+                    MessageEntity(chatId = chatId, role = "user", content = text)
+                )
+                if (isFirst) chatRepository.renameChat(chatId, autoTitle(text))
+
+                val hint = SearchQueryDetector.toQueryHint(text).ifBlank { text }
+                val query = searchQuery(request = text, hint = hint)
+
+                val reply = when (val outcome = browserSearchLauncher.launch(query)) {
+                    is BrowserSearchOutcome.Opened ->
+                        "Searched the web for \"$query\". Your browser has the results."
+
+                    is BrowserSearchOutcome.ShowUrl -> {
+                        _webSearch.value = WebSearchFallback(query = query, url = outcome.url)
+                        "The browser could not be opened automatically. " +
+                            "Search for \"$query\" here: ${outcome.url}"
+                    }
+
+                    is BrowserSearchOutcome.ShowQuery -> {
+                        _webSearch.value = WebSearchFallback(query = query, url = null)
+                        "The browser could not be opened automatically. " +
+                            "Copy this search query into it: $query"
+                    }
+                }
+                chatRepository.insertMessage(
+                    MessageEntity(chatId = chatId, role = "assistant", content = reply)
+                )
+                chatRepository.touchChat(chatId)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // A search that fails to start is never allowed to end the app.
+                _error.value = e.message ?: "The web search could not be started."
+            } finally {
+                _isGenerating.value = false
+            }
+        }
+    }
+
+    /**
+     * The query handed to the browser. The chat model condenses the request when
+     * one is loaded; the lexical hint stands in when it is not, or when the
+     * model answers with something unusable.
+     */
+    private suspend fun searchQuery(request: String, hint: String): String {
+        if (!isChatModelReady()) return hint
+        val prompt = promptBuilder.buildSearchQueryPrompt(request)
+        val builder = StringBuilder()
+        runCatching {
+            chatModel.generateStream(prompt, temperature = 0.1f, maxTokens = SEARCH_QUERY_TOKENS)
+                .collect { chunk -> builder.append(chunk) }
+        }
+        return sanitizeQuery(builder.toString()).ifBlank { hint }
+    }
+
+    /**
+     * Keeps the first usable line only. A small model tends to answer with a
+     * whole sentence, quotes, or a "Query:" label; none of that belongs in a
+     * search box.
+     */
+    private fun sanitizeQuery(raw: String): String = raw.lineSequence()
+        .map { line ->
+            line.trim()
+                .trimStart('-', '*', '#')
+                .removePrefix("Query:")
+                .removePrefix("query:")
+                .trim()
+        }
+        .firstOrNull { it.isNotBlank() }
+        ?.removeSurrounding("\"")
+        ?.removeSurrounding("「", "」")
+        ?.trim()
+        ?.trimEnd('.', '。', ',', '、', ':', '：')
+        ?.take(SEARCH_QUERY_MAX_CHARS)
+        ?.trim()
+        .orEmpty()
 
     fun regenerate() {
         if (_isGenerating.value) return
@@ -407,5 +539,9 @@ class ChatViewModel @Inject constructor(
 
         /** Same, for documents: reading one back is cheap, so the window is wider. */
         private const val DOCUMENT_CONTEXT_MESSAGES = 12
+
+        /** A search query is a handful of keywords; it must never ramble. */
+        private const val SEARCH_QUERY_TOKENS = 48
+        private const val SEARCH_QUERY_MAX_CHARS = 120
     }
 }

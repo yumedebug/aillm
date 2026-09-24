@@ -31,6 +31,10 @@ android {
 }
 
 dependencies {
+    // The Decision AI implements the engine interface the rest of the app
+    // already speaks (:ai), so it plugs into the model repository unchanged.
+    implementation(project(":ai"))
+
     // Inference runtime. onnxruntime-extensions is a companion AAR that adds
     // the custom operators the exported tokenizer graph depends on; without it
     // the session fails to load with "Unknown operator BertTokenizer".

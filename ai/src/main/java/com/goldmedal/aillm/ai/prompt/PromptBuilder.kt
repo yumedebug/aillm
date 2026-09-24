@@ -87,6 +87,22 @@ class PromptBuilder {
     }
 
     /**
+     * Messages for turning a request into a web-search query. The answer is fed
+     * to the browser, not to the conversation, so it must be a bare query and
+     * nothing else — keywords, no sentence, no quotes, no explanation. Uses the
+     * user role so every chat template formats it the same way.
+     */
+    fun buildSearchQueryPrompt(userRequest: String): List<ChatMessage> = listOf(
+        ChatMessage(
+            role = "system",
+            content = "You turn a request into a single web search query. Reply with the " +
+                "query only: keywords, no quotes, no punctuation at the end, no explanation, " +
+                "at most 12 words, in the language of the request."
+        ),
+        ChatMessage(role = "user", content = userRequest.trim())
+    )
+
+    /**
      * Prompt for looking at an image. When a question is present the report is
      * written to answer it, which is what lets the same picture be asked about
      * repeatedly without the user re-attaching it.

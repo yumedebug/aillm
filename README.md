@@ -35,10 +35,13 @@ Four independent roles, loaded on demand and never all at once:
 | Coding | Writing, reviewing and explaining code |
 | Vision | Image understanding (describe photos, screenshots, documents) |
 | Image generation | Text-to-image |
+| Decision | Yes/No verdicts on a proposition (wfzyx/von) |
 
 Every model is fetched directly from a **public Hugging Face repository** that
 has been checked to exist and to need no login. Chat and Coding share one
-runtime, so only one of the two is resident at a time.
+runtime, so only one of the two is resident at a time. Decision is the exception
+to "one role at a time": it runs on ONNX Runtime, so loading it never evicts the
+resident chat model.
 
 Models live in `ai/model/`: a catalogue (`ModelSpec`), a lifecycle state machine
 (`ModelStatus`), a recommender (`ModelRecommender`) that ranks the library for
@@ -69,7 +72,7 @@ core/       Design system, preferences, device probe, Room database
 ai/         Model catalogue/repository/downloader, prompts, engine interfaces
 llm/        llama.cpp JNI bridge (C++ via NDK/CMake) + chat engine
 memory/     Memory engine, extraction, semantic search, memory UI
-search/     WebSearchClient abstraction + default-OFF online sources flag
+search/     Web-search intent detection, browser hand-off, online sources flag
 chat/       Chat UI, streaming view model, message history
 settings/   Grouped settings screens
 files/      File import and text extraction
@@ -185,6 +188,69 @@ file whose input is `tensor(string)` and whose output is Float logits.
 `StringOnnxClassifier` then feeds it text and returns scores, registering the
 extensions library so the tokenizer node resolves. See [`onnx/README.md`](onnx/README.md)
 for the export command and the Kotlin usage.
+
+### Decision AI — `wfzyx/von` (the VON screen)
+
+Von is not a chat model and is not treated as one. It is a **non-autoregressive**
+ModernBERT-large (395M) with an NLI head: it judges whether "A holds of B" in a
+single encoder pass and answers with a **probability** — no generation, no
+prose, no conversation. It runs on the `:onnx` runtime.
+
+The **VON screen is the app's main screen** (the first bottom-bar destination),
+built for one job, in the shape of a form:
+
+- **A** — one subject per line (multi-line, scrollable): `東京都` / `埼玉県` /
+  `カリフォルニア州`…
+- **B** — one line: `日本のもの`
+- **判定** — walks each A line through Von independently: `A → B か？`, and
+  fills the result list in progressively (`Waiting… → Checking… → verdict`).
+
+Each verdict is cut from the probability alone:
+
+```
+probability >= 51%          -> Y
+probability <= 49%          -> N
+49% < probability < 51%     -> C (Not Clear)
+```
+
+and the list — one row per A — is the pipeline made visible:
+`A ↓ Von ↓ Bとの成立確率 ↓ Y / N / C`.
+
+- The catalogue entry downloads the real files from
+  [`wfzyx/von`](https://huggingface.co/wfzyx/von) — the weights, tokenizer,
+  `config.json` (which is where the head's label order comes from) and the
+  authors' fitted `calibration.json`.
+- Since the repository ships safetensors rather than an executable graph, the
+  ONNX export from `onnx/export` is what actually runs: the logits are read as
+  entailment → holds, contradiction → does not hold, with the calibrated
+  temperature applied.
+- Von **loads automatically at app start** (`Loading Von…` → `Von Ready`), and
+  the 判定 button is disabled until the model is Ready. A load error is shown
+  in words, with the way out (re-download from Models).
+- Von is loaded **alone**: loading Von unloads any resident chat model and
+  loading a chat model unloads Von — the two runtimes never sit in memory
+  together, and no second model is ever loaded alongside Von.
+- Until the export is present — or if a verdict cannot be read — the built-in
+  lexical fallback answers, and the row says `Fallback` instead of `Von`,
+  rather than passing a guess off as the model's.
+
+### Web search (no API, no key)
+
+The app never fetches or parses search results. When a message reads like a
+request for live information, the chat model is asked for one thing only — a
+search query — and that query is handed to the **device's browser**:
+
+1. `ACTION_WEB_SEARCH`, the system's own search surface,
+2. `ACTION_VIEW` on a search URL, resolved by the default browser,
+3. the search URL shown in the chat as a tappable, copyable link,
+4. the raw query shown so it can be copied by hand.
+
+Each step is only taken if the previous one does not start an activity, and a
+failure at any point is caught — a search that cannot open a browser shows the
+fallback card instead of ending the app. Intent-target visibility for Android 11+
+is declared in the manifest's `<queries>`. The feature is independent of the
+conversation: it produces no assistant prose, and it works even with no chat
+model loaded (the query is then derived lexically from your message).
 
 ### Attachments stay in the conversation
 

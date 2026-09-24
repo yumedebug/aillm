@@ -10,6 +10,18 @@
    models that actually fit, then installs the one you choose in-app (no browser).
 
 ## What's new in this build
+- **VON is the main screen.** The app opens on the Decision AI: A as multiple
+  lines (one subject each), B as one line, and a 判定 button that runs every A
+  through Von independently — `東京都 → 日本のものか？` — filling the result
+  list in row by row (`Waiting… / Checking…` → `Y 98.7%`).
+- **Y / N / C verdict scale:** probability ≥ 51% → Y, ≤ 49% → N, in between →
+  C (Not Clear). The probability is Von's own; the scale is arithmetic.
+- **Von loads at startup** (`Loading Von…` → `Von Ready`), fully on-device via
+  ONNX Runtime; nothing is sent anywhere. 判定 stays disabled until Ready, and
+  a load failure is explained in words.
+- **Von loads alone, never combined:** loading Von unloads any resident chat
+  model, and loading a chat model unloads Von. No chat LLM (Qwen etc.) is ever
+  co-loaded with Von.
 - **Rebuilt UI/UX and design system** — dark-first, minimal, a single restrained
   accent, and shared components instead of default Material cards everywhere.
 - **Bottom navigation: Chat / History / Models / Settings.** Memory, Files and
@@ -22,6 +34,13 @@
   Image generation. Resumable, cancellable, and verified before use.
 - **Chat:** streaming replies, Markdown with copyable code blocks, message copy,
   regenerate, stop, image and document attachments, automatic conversation titles.
+- **Decision AI (wfzyx/von):** a downloadable Yes/No decision model, separate
+  from chat — one proposition in, `Y` or `N` out, with the confidence and a badge
+  saying whether the real model or the built-in fallback answered.
+- **Web search through your browser:** ask for something current and the chat
+  model turns the request into a query, which is handed to the device's browser.
+  No search API, no key, no backend, and results are never fetched by the app —
+  if the browser cannot be opened, the URL or the query is shown to tap or copy.
 - **Memory:** a live, searchable, editable view of everything the assistant
   remembers.
 - **Online sources** are **off by default** and hidden under

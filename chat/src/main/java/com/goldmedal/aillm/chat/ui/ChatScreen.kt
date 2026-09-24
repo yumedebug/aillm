@@ -3,6 +3,7 @@ package com.goldmedal.aillm.chat.ui
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,6 +28,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -48,14 +50,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.goldmedal.aillm.ai.model.ModelStatus
 import com.goldmedal.aillm.chat.image.ChatImageStore
 import com.goldmedal.aillm.chat.viewmodel.ChatViewModel
+import com.goldmedal.aillm.chat.websearch.WebSearchFallback
 import com.goldmedal.aillm.core.database.MessageEntity
 import com.goldmedal.aillm.core.design.AillmTopBar
 import com.goldmedal.aillm.core.design.LiquidGlassSurface
@@ -65,6 +71,7 @@ import com.goldmedal.aillm.core.design.Spacing
 fun ChatScreen(
     onOpenModels: () -> Unit,
     onOpenMemory: () -> Unit,
+    onOpenDecision: () -> Unit,
     modifier: Modifier = Modifier,
     chatId: Long? = null,
     viewModel: ChatViewModel = hiltViewModel()
@@ -81,6 +88,7 @@ fun ChatScreen(
     val modelStatus by viewModel.chatModelStatus.collectAsState()
     val modelName by viewModel.chatModelName.collectAsState()
     val error by viewModel.error.collectAsState()
+    val webSearch by viewModel.webSearch.collectAsState()
 
     var input by remember { mutableStateOf("") }
     var showMemory by remember { mutableStateOf(false) }
@@ -112,6 +120,11 @@ fun ChatScreen(
                     // conversation, so it should not be a separate trip.
                     IconButton(onClick = { showMemory = true }) {
                         Icon(Icons.Default.Psychology, contentDescription = "Memory")
+                    }
+                    // The Decision model answers Yes/No instead of chatting, so
+                    // it has its own screen rather than a turn in the thread.
+                    IconButton(onClick = onOpenDecision) {
+                        Icon(Icons.Default.ThumbUp, contentDescription = "Decision model")
                     }
                 }
             )
@@ -191,6 +204,18 @@ fun ChatScreen(
                 }
             }
 
+            webSearch?.let { fallback ->
+                WebSearchCard(
+                    fallback = fallback,
+                    onOpenUrl = { viewModel.openWebSearchUrl(it) },
+                    onDismiss = { viewModel.dismissWebSearch() },
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(horizontal = Spacing.lg)
+                        .fillMaxWidth()
+                )
+            }
+
             error?.let { message ->
                 Surface(
                     color = MaterialTheme.colorScheme.errorContainer,
@@ -219,6 +244,86 @@ fun ChatScreen(
                 onOpenMemory()
             }
         )
+    }
+}
+
+private const val COPIED_QUERY = "query"
+private const val COPIED_URL = "url"
+
+/**
+ * What the user sees when the browser could not be opened for them: the search
+ * URL to tap (and copy), or the raw query to copy when even the URL could not be
+ * built. The app still never fetches any results itself.
+ */
+@Composable
+private fun WebSearchCard(
+    fallback: WebSearchFallback,
+    onOpenUrl: (String) -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val clipboard = LocalClipboardManager.current
+    var copied by remember { mutableStateOf<String?>(null) }
+    val url = fallback.url
+
+    LiquidGlassSurface(modifier = modifier) {
+        Column(modifier = Modifier.padding(Spacing.lg)) {
+            Text(
+                text = "Web search",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(Spacing.xs))
+            if (url != null) {
+                Text(
+                    text = "The browser could not be opened automatically. " +
+                        "Tap the link, or copy it into any browser.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(Modifier.height(Spacing.xs))
+                Text(
+                    text = url,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        textDecoration = TextDecoration.Underline
+                    ),
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.clickable { onOpenUrl(url) }
+                )
+            } else {
+                Text(
+                    text = "The search URL could not be built. Copy this query and paste it " +
+                        "into any browser.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(Modifier.height(Spacing.xs))
+                Text(
+                    text = fallback.query,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+            Spacer(Modifier.height(Spacing.sm))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = {
+                    clipboard.setText(AnnotatedString(fallback.query))
+                    copied = COPIED_QUERY
+                }) {
+                    Text(if (copied == COPIED_QUERY) "Copied" else "Copy query")
+                }
+                if (url != null) {
+                    TextButton(onClick = {
+                        clipboard.setText(AnnotatedString(url))
+                        copied = COPIED_URL
+                    }) {
+                        Text(if (copied == COPIED_URL) "Copied" else "Copy link")
+                    }
+                }
+                Spacer(Modifier.weight(1f))
+                TextButton(onClick = onDismiss) { Text("Dismiss") }
+            }
+        }
     }
 }
 

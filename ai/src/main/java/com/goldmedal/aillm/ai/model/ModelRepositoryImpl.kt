@@ -2,6 +2,8 @@ package com.goldmedal.aillm.ai.model
 
 import android.content.Context
 import com.goldmedal.aillm.ai.chat.ChatModel
+import com.goldmedal.aillm.ai.decision.DecisionModel
+import com.goldmedal.aillm.ai.decision.VON_MODEL_ID
 import com.goldmedal.aillm.ai.engine.OnDeviceEngine
 import com.goldmedal.aillm.ai.imagegeneration.ImageGenerationModel
 import com.goldmedal.aillm.ai.vision.VisionModel
@@ -32,7 +34,8 @@ class ModelRepositoryImpl @Inject constructor(
     private val downloader: ModelDownloader,
     private val chatModel: ChatModel,
     private val visionModel: VisionModel,
-    private val imageGenerationModel: ImageGenerationModel
+    private val imageGenerationModel: ImageGenerationModel,
+    private val decisionModel: DecisionModel
 ) : ModelRepository {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -44,7 +47,29 @@ class ModelRepositoryImpl @Inject constructor(
     private val loadedIds = mutableMapOf<ModelKind, String>()
 
     init {
-        scope.launch { restore() }
+        scope.launch {
+            restore()
+            // Von is the app's front door: once the previous session's model is
+            // accounted for, Von's ONNX runtime is brought up for the launch.
+            // It runs after restore so the two loads cannot race; if a chat
+            // model was restored, Von replaces it as the resident engine.
+            autoLoadVon()
+        }
+    }
+
+    /**
+     * Loads Von on startup when it is installed.
+     *
+     * Von never shares the device with a resident chat model — [load] unloads
+     * whichever side is already up — so this leaves Von as the only resident
+     * engine. When Von is not installed the app keeps its normal state: the
+     * Decision screen offers the download and nothing else is disturbed.
+     */
+    private suspend fun autoLoadVon() {
+        if (ModelCatalog.byId(VON_MODEL_ID) == null) return
+        if (status(VON_MODEL_ID).isInstalled) {
+            runCatching { load(VON_MODEL_ID) }
+        }
     }
 
     // ---- catalog ----
@@ -82,7 +107,12 @@ class ModelRepositoryImpl @Inject constructor(
             }
         }
         _states.update { it + map }
-        restoreLastModel()
+        // Von is the front door: when it is installed it always takes the
+        // device on startup (autoLoadVon), so the last session's chat model is
+        // not brought back just to be evicted again a moment later.
+        if (!status(VON_MODEL_ID).isInstalled) {
+            restoreLastModel()
+        }
     }
 
     /**
@@ -96,6 +126,9 @@ class ModelRepositoryImpl @Inject constructor(
         val lastId = runCatching { appSettings.lastUsedModelId.first() }.getOrNull() ?: return
         val spec = ModelCatalog.byId(lastId) ?: return
         if (spec.kind == ModelKind.IMAGE_GENERATION) return
+        // Von is brought up by [autoLoadVon] instead; it is never "the last
+        // chat model" and must not be restored as one.
+        if (spec.kind == ModelKind.DECISION) return
         if (!status(lastId).isInstalled) {
             runCatching { appSettings.clearLastUsedModelId() }
             return
@@ -179,6 +212,22 @@ class ModelRepositoryImpl @Inject constructor(
         if (!status(id).isInstalled) {
             return Result.failure(IllegalStateException("${spec.name} is not installed"))
         }
+        // A load already under way must not be started again — startup (autoLoadVon)
+        // and a screen reacting to the same install could otherwise race.
+        if (status(id) is ModelStatus.Loading) return Result.success(Unit)
+
+        // Von never shares memory with a chat model: loading one side unloads
+        // the other first. The two runtimes may not both be resident.
+        if (spec.kind == ModelKind.DECISION) {
+            if (loadedIds[ModelKind.CHAT] != null ||
+                loadedIds[ModelKind.CODING] != null ||
+                loadedIds[ModelKind.VISION] != null
+            ) {
+                runCatching { unload(ModelKind.CHAT) }
+            }
+        } else if (loadedIds[ModelKind.DECISION] != null) {
+            runCatching { unload(ModelKind.DECISION) }
+        }
 
         // Chat and coding models share one runtime, so only one can be resident.
         for (sibling in siblingsOf(spec.kind)) {
@@ -211,7 +260,11 @@ class ModelRepositoryImpl @Inject constructor(
                 loadedIds[spec.kind] = id
                 runCatching { installedModelDao.touch(id) }
                 // Remembered so the next launch can bring the same model back.
-                runCatching { appSettings.setLastUsedModelId(id) }
+                // Von is loaded automatically on every launch, so it is never
+                // remembered as the "last used" chat model.
+                if (spec.kind != ModelKind.DECISION) {
+                    runCatching { appSettings.setLastUsedModelId(id) }
+                }
                 set(id, ModelStatus.Ready)
             }
             .onFailure { error ->
@@ -233,6 +286,7 @@ class ModelRepositoryImpl @Inject constructor(
         ModelKind.CHAT, ModelKind.CODING -> chatModel
         ModelKind.VISION -> visionModel
         ModelKind.IMAGE_GENERATION -> imageGenerationModel
+        ModelKind.DECISION -> decisionModel
     }
 
     /**
@@ -245,6 +299,9 @@ class ModelRepositoryImpl @Inject constructor(
         ModelKind.CODING -> listOf(ModelKind.CHAT, ModelKind.VISION)
         ModelKind.VISION -> listOf(ModelKind.CHAT, ModelKind.CODING)
         ModelKind.IMAGE_GENERATION -> emptyList()
+        // The Decision model runs on the ONNX runtime, independently of the
+        // text model, so loading it never evicts the resident chat model.
+        ModelKind.DECISION -> emptyList()
     }
 
     private fun set(id: String, status: ModelStatus) {

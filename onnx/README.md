@@ -88,6 +88,45 @@ so the `BertTokenizer` node in the graph resolves without any extra setup. The
 session is created lazily and reused; a session is expensive to build, so keep
 one `StringOnnxClassifier` alive rather than creating it per call.
 
+## 3. The Decision AI: `wfzyx/von`
+
+[`wfzyx/von`](https://huggingface.co/wfzyx/von) is a ModernBERT-large decision
+model: it reads "A against B" and answers with a probability in one pass (the
+app's main screen turns that probability into Y / N / C). It is this module's
+canonical model in the app (`VonDecisionModel`), because the chat runtime in
+`:llm` cannot run an encoder with a classification head.
+
+The Hugging Face repository ships **safetensors**, not a runnable graph, so the
+graph has to come from the same export used for any other classifier:
+
+```bash
+python export_tokenizer_model.py \
+  --model wfzyx/von \
+  --output build/von-classifier.onnx \
+  --labels build/von-classifier.labels.json \
+  --int8 \
+  --verify
+```
+
+Copy the result next to the app's downloaded Von files — the app looks for
+`von-classifier.onnx`, `von-classifier.int8.onnx` or `model.onnx` in the same
+directory as the weights (`/data/data/com.goldmedal.aillm/files/models/`), with
+the optional `von-classifier.labels.json` beside it.
+
+How the probability is read (`VonDecisionModel`):
+
+| | |
+|---|---|
+| input | `"A [SEP] B"` — the screen's A line judged against B |
+| head | `id2label` from `config.json` — 0 `entailment`, 1 `neutral`, 2 `contradiction` |
+| probability | entailment ÷ (entailment + contradiction) — a strong neutral pulls it toward the C band |
+| verdict | `≥ 51%` → Y, `≤ 49%` → N, between → C (Not Clear) |
+| logits | scaled by `temperature` from the authors' `calibration.json` (1.1692) |
+
+Without that ONNX file the app still answers, from `VonDecisionRules`
+(negation / affirmation patterns) — and it labels the result as a fallback
+instead of pretending the weights ran.
+
 ## Dependencies
 
 | artifact | why |

@@ -2,6 +2,7 @@ package com.goldmedal.aillm.ai.di
 
 import android.content.Context
 import com.goldmedal.aillm.ai.chat.ChatModel
+import com.goldmedal.aillm.ai.decision.DecisionModel
 import com.goldmedal.aillm.ai.imagegeneration.ImageGenerationModel
 import com.goldmedal.aillm.ai.imagegeneration.StubImageGenerationModel
 import com.goldmedal.aillm.ai.llm.LlamaChatModel
@@ -14,6 +15,7 @@ import com.goldmedal.aillm.ai.vision.VisionModel
 import com.goldmedal.aillm.core.database.InstalledModelDao
 import com.goldmedal.aillm.core.preferences.AppSettings
 import com.goldmedal.aillm.memory.embedding.EmbeddingModel
+import com.goldmedal.aillm.onnx.VonDecisionModel
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -46,6 +48,14 @@ object AiModule {
     @Singleton
     fun provideImageGenerationModel(): ImageGenerationModel = StubImageGenerationModel()
 
+    /**
+     * The Decision AI (wfzyx/von) runs on its own ONNX runtime, so it is a
+     * separate engine from the chat model and can be resident at the same time.
+     */
+    @Provides
+    @Singleton
+    fun provideDecisionModel(): DecisionModel = VonDecisionModel()
+
     @Provides
     @Singleton
     fun provideEmbeddingModel(
@@ -61,7 +71,8 @@ object AiModule {
         downloader: ModelDownloader,
         chatModel: ChatModel,
         visionModel: VisionModel,
-        imageGenerationModel: ImageGenerationModel
+        imageGenerationModel: ImageGenerationModel,
+        decisionModel: DecisionModel
     ): ModelRepository = ModelRepositoryImpl(
         context = context,
         installedModelDao = installedModelDao,
@@ -69,6 +80,7 @@ object AiModule {
         downloader = downloader,
         chatModel = chatModel,
         visionModel = visionModel,
-        imageGenerationModel = imageGenerationModel
+        imageGenerationModel = imageGenerationModel,
+        decisionModel = decisionModel
     )
 }
