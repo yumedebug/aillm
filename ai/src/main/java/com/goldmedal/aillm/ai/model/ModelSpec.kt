@@ -3,6 +3,9 @@ package com.goldmedal.aillm.ai.model
 import com.goldmedal.aillm.ai.decision.VON_MODEL_ID
 import com.goldmedal.aillm.ai.prompt.ChatPromptFormat
 
+/** The one image-generation model in the library. */
+const val IMAGE_MODEL_ID = "absolute-reality-1.81"
+
 /** The independent model roles. Each one is loaded separately, on demand. */
 enum class ModelKind(val label: String, val blurb: String) {
     CHAT("Chat", "Everyday conversation and questions"),
@@ -416,59 +419,27 @@ object ModelCatalog {
         ),
 
         // ---------------------------------------------------- Image generation
+        // One image model, not a menu: Lykon's Absolute Reality 1.81. It is a
+        // photoreal SD 1.5 merge and is packaged as a single .safetensors that
+        // stable-diffusion.cpp loads directly, unlike the diffusers-format
+        // mirror of the same release (separate unet/vae/text_encoder files).
         ModelSpec(
-            id = "sd-1.5-q4",
-            name = "Stable Diffusion 1.5 Lite",
-            family = "Stability",
+            id = IMAGE_MODEL_ID,
+            name = "Absolute Reality 1.81",
+            family = "Lykon",
             kind = ModelKind.IMAGE_GENERATION,
             parameters = "0.9B",
-            quantization = "Q4_0",
-            fileName = "stable-diffusion-v1-5-pruned-emaonly-Q4_0.gguf",
-            downloadUrl = "https://huggingface.co/second-state/stable-diffusion-v1-5-GGUF/resolve/main/stable-diffusion-v1-5-pruned-emaonly-Q4_0.gguf",
-            sizeBytes = 1_566_768_416L,
-            minRamBytes = 3 * GB,
-            recommendedRamBytes = 4 * GB,
-            contextLength = 0,
-            speedRating = 5,
-            qualityRating = 2,
-            description = "Smallest image model. Fast drafts on mid-range phones.",
-            tags = listOf("light", "fastest")
-        ),
-        ModelSpec(
-            id = "sd-1.5-q8",
-            name = "Stable Diffusion 1.5",
-            family = "Stability",
-            kind = ModelKind.IMAGE_GENERATION,
-            parameters = "0.9B",
-            quantization = "Q8_0",
-            fileName = "stable-diffusion-v1-5-pruned-emaonly-Q8_0.gguf",
-            downloadUrl = "https://huggingface.co/second-state/stable-diffusion-v1-5-GGUF/resolve/main/stable-diffusion-v1-5-pruned-emaonly-Q8_0.gguf",
-            sizeBytes = 1_763_578_176L,
-            minRamBytes = 4 * GB,
-            recommendedRamBytes = 6 * GB,
-            contextLength = 0,
-            speedRating = 4,
-            qualityRating = 3,
-            description = "The classic text-to-image model at full precision.",
-            tags = listOf("recommended")
-        ),
-        ModelSpec(
-            id = "sd-2.1-q8",
-            name = "Stable Diffusion 2.1",
-            family = "Stability",
-            kind = ModelKind.IMAGE_GENERATION,
-            parameters = "1.0B",
-            quantization = "Q8_0",
-            fileName = "v2-1_768-nonema-pruned-Q8_0.gguf",
-            downloadUrl = "https://huggingface.co/second-state/stable-diffusion-2-1-GGUF/resolve/main/v2-1_768-nonema-pruned-Q8_0.gguf",
-            sizeBytes = 2_014_680_768L,
-            minRamBytes = 4 * GB,
-            recommendedRamBytes = 6 * GB,
+            quantization = "F16",
+            fileName = "AbsoluteReality_1.8.1_pruned.safetensors",
+            downloadUrl = "https://huggingface.co/Lykon/AbsoluteReality/resolve/main/AbsoluteReality_1.8.1_pruned.safetensors",
+            sizeBytes = 2_132_625_432L,
+            minRamBytes = 6 * GB,
+            recommendedRamBytes = 8 * GB,
             contextLength = 0,
             speedRating = 3,
-            qualityRating = 4,
-            description = "Sharper, higher-resolution results than 1.5.",
-            tags = listOf("high quality")
+            qualityRating = 5,
+            description = "Lykon's photorealistic SD 1.5 checkpoint. Generates pictures fully on-device.",
+            tags = listOf("recommended", "photoreal")
         )
     )
 

@@ -3,8 +3,8 @@ package com.goldmedal.aillm.ai.di
 import android.content.Context
 import com.goldmedal.aillm.ai.chat.ChatModel
 import com.goldmedal.aillm.ai.decision.DecisionModel
+import com.goldmedal.aillm.ai.diffusion.SdImageGenerationModel
 import com.goldmedal.aillm.ai.imagegeneration.ImageGenerationModel
-import com.goldmedal.aillm.ai.imagegeneration.StubImageGenerationModel
 import com.goldmedal.aillm.ai.llm.LlamaChatModel
 import com.goldmedal.aillm.ai.llm.LlamaEmbeddingModel
 import com.goldmedal.aillm.ai.llm.LlamaVisionModel
@@ -44,9 +44,13 @@ object AiModule {
         chatModel: LlamaChatModel
     ): VisionModel = LlamaVisionModel(context, chatModel)
 
+    /**
+     * Image generation runs on stable-diffusion.cpp, compiled from source by
+     * the :diffusion module, so it is its own runtime like Decision's ONNX one.
+     */
     @Provides
     @Singleton
-    fun provideImageGenerationModel(): ImageGenerationModel = StubImageGenerationModel()
+    fun provideImageGenerationModel(): ImageGenerationModel = SdImageGenerationModel()
 
     /**
      * The Decision AI (wfzyx/von) runs on its own ONNX runtime, so it is a

@@ -16,7 +16,7 @@ jobs:
     # The :llm module compiles llama.cpp from source (NDK + CMake), which is the
     # slow part of this job. Compiling it is deliberate: on-device inference
     # needs token streaming, which a prebuilt AAR cannot provide.
-    timeout-minutes: 90
+    timeout-minutes: 180
 
     steps:
     - name: Checkout code
@@ -45,8 +45,10 @@ jobs:
     - name: Cache native build
       uses: actions/cache@v4
       with:
-        path: llm/.cxx
-        key: native-${{ runner.os }}-${{ hashFiles('llm/src/main/cpp/**', 'llm/build.gradle.kts') }}
+        path: |
+          llm/.cxx
+          diffusion/.cxx
+        key: native-${{ runner.os }}-${{ hashFiles('llm/src/main/cpp/**', 'llm/build.gradle.kts', 'diffusion/src/main/cpp/**', 'diffusion/build.gradle.kts') }}
         restore-keys: |
           native-${{ runner.os }}-
 

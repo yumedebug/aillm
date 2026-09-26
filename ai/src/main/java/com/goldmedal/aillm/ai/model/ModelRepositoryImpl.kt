@@ -46,6 +46,12 @@ class ModelRepositoryImpl @Inject constructor(
     private val downloadJobs = mutableMapOf<String, Job>()
     private val loadedIds = mutableMapOf<ModelKind, String>()
 
+    /**
+     * Roles whose runtimes are too heavy to share memory with a chat model.
+     * Declared before [init] so the startup load can never read it unset.
+     */
+    private val HEAVY_KINDS = setOf(ModelKind.DECISION, ModelKind.IMAGE_GENERATION)
+
     init {
         scope.launch {
             restore()
@@ -216,17 +222,20 @@ class ModelRepositoryImpl @Inject constructor(
         // and a screen reacting to the same install could otherwise race.
         if (status(id) is ModelStatus.Loading) return Result.success(Unit)
 
-        // Von never shares memory with a chat model: loading one side unloads
-        // the other first. The two runtimes may not both be resident.
-        if (spec.kind == ModelKind.DECISION) {
+        // Neither Von nor the image engine shares memory with a chat model:
+        // loading one side unloads the other first. All three are too large to
+        // sit in RAM together on a phone.
+        if (spec.kind in HEAVY_KINDS) {
             if (loadedIds[ModelKind.CHAT] != null ||
                 loadedIds[ModelKind.CODING] != null ||
                 loadedIds[ModelKind.VISION] != null
             ) {
                 runCatching { unload(ModelKind.CHAT) }
             }
-        } else if (loadedIds[ModelKind.DECISION] != null) {
-            runCatching { unload(ModelKind.DECISION) }
+        } else {
+            HEAVY_KINDS.forEach { heavy ->
+                if (loadedIds[heavy] != null) runCatching { unload(heavy) }
+            }
         }
 
         // Chat and coding models share one runtime, so only one can be resident.
@@ -262,7 +271,7 @@ class ModelRepositoryImpl @Inject constructor(
                 // Remembered so the next launch can bring the same model back.
                 // Von is loaded automatically on every launch, so it is never
                 // remembered as the "last used" chat model.
-                if (spec.kind != ModelKind.DECISION) {
+                if (spec.kind !in HEAVY_KINDS) {
                     runCatching { appSettings.setLastUsedModelId(id) }
                 }
                 set(id, ModelStatus.Ready)

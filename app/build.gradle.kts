@@ -14,8 +14,8 @@ android {
         applicationId = "com.goldmedal.aillm"
         minSdk = 26
         targetSdk = 35
-        versionCode = 5
-        versionName = "1.3.0"
+        versionCode = 6
+        versionName = "1.4.0"
 
         // Developer-controlled search backend. Empty by default: online sources
         // stay inactive, and no secret is ever shipped in the APK.
@@ -79,6 +79,7 @@ dependencies {
     implementation(project(":files"))
     implementation(project(":llm"))
     implementation(project(":onnx"))
+    implementation(project(":diffusion"))
 
     // Compose
     val composeBom = platform("androidx.compose:compose-bom:2024.12.01")

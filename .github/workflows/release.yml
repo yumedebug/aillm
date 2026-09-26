@@ -14,7 +14,7 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 180
     permissions:
       contents: write
 
@@ -45,8 +45,10 @@ jobs:
     - name: Cache native build
       uses: actions/cache@v4
       with:
-        path: llm/.cxx
-        key: native-${{ runner.os }}-${{ hashFiles('llm/src/main/cpp/**', 'llm/build.gradle.kts') }}
+        path: |
+          llm/.cxx
+          diffusion/.cxx
+        key: native-${{ runner.os }}-${{ hashFiles('llm/src/main/cpp/**', 'llm/build.gradle.kts', 'diffusion/src/main/cpp/**', 'diffusion/build.gradle.kts') }}
         restore-keys: |
           native-${{ runner.os }}-
 

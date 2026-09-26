@@ -1,4 +1,4 @@
-# AILLM — local-first on-device AI (release v1.2.1)
+# AILLM — local-first on-device AI (release v1.4.0)
 
 **Everything runs on your phone. Nothing leaves the device.**
 
@@ -10,6 +10,12 @@
    models that actually fit, then installs the one you choose in-app (no browser).
 
 ## What's new in this build
+- **On-device image generation.** The image role is now real, not a placeholder:
+  **Absolute Reality 1.81** (Lykon's photoreal SD 1.5 merge) runs through
+  **stable-diffusion.cpp**, compiled from source by the new `:diffusion` module.
+  It is the single image model — no menu, one honest choice — downloaded as a
+  single `.safetensors` and loaded lazily on the first generation, quantized to
+  Q8_0 so it fits a phone. Open it from **Models → Images → Generate**.
 - **VON is the main screen.** The app opens on the Decision AI: A as multiple
   lines (one subject each), B as one line, and a 判定 button that runs every A
   through Von independently — `東京都 → 日本のものか？` — filling the result
@@ -47,9 +53,9 @@
   Settings → Advanced. Users are never asked for API keys.
 
 ## Notes
-- Inference currently runs through the stub engine; model management, state,
-  storage and UI are fully implemented and the real engine drops in behind the
-  same interfaces.
+- Chat runs on llama.cpp, vision on its libmtmd projector, decisions on ONNX
+  Runtime, and image generation on stable-diffusion.cpp — all compiled from
+  source by GitHub Actions and all on-device.
 - Online lookup is not configured in this build and therefore stays inactive
   even when enabled.
 

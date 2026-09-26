@@ -65,6 +65,7 @@ import com.goldmedal.aillm.settings.ui.SettingsScreen
 import com.goldmedal.aillm.settings.ui.StorageScreen
 import com.goldmedal.aillm.ui.decision.DecisionScreen
 import com.goldmedal.aillm.ui.history.HistoryScreen
+import com.goldmedal.aillm.ui.image.ImageScreen
 import com.goldmedal.aillm.ui.models.ModelsScreen
 
 object AppRoutes {
@@ -74,6 +75,7 @@ object AppRoutes {
     const val CHAT_WITH_ID = "chat/{chatId}"
     const val HISTORY = "history"
     const val MODELS = "models"
+    const val IMAGE = "image"
     const val SETTINGS = "settings"
     const val MEMORY = "memory"
     const val FILES = "files"
@@ -161,7 +163,12 @@ fun AppNav() {
                 )
             }
             composable(AppRoutes.MODELS) {
-                ModelsScreen()
+                ModelsScreen(
+                    onOpenImages = { navController.navigate(AppRoutes.IMAGE) { launchSingleTop = true } }
+                )
+            }
+            composable(AppRoutes.IMAGE) {
+                ImageScreen(onBack = { navController.popBackStack() })
             }
             composable(AppRoutes.MEMORY) {
                 MemoryScreen(onBack = { navController.popBackStack() })

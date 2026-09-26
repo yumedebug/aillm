@@ -46,7 +46,10 @@ import com.goldmedal.aillm.core.design.StatusBadge
 import com.goldmedal.aillm.core.design.formatBytes
 
 @Composable
-fun ModelsScreen(viewModel: ModelsViewModel = hiltViewModel()) {
+fun ModelsScreen(
+    onOpenImages: () -> Unit = {},
+    viewModel: ModelsViewModel = hiltViewModel()
+) {
     val kind by viewModel.kind.collectAsState()
     val rows by viewModel.rows.collectAsState()
 
@@ -107,7 +110,8 @@ fun ModelsScreen(viewModel: ModelsViewModel = hiltViewModel()) {
                             onCancel = { viewModel.cancelDownload(row.spec.id) },
                             onDelete = { viewModel.delete(row.spec.id) },
                             onLoad = { viewModel.load(row.spec.id) },
-                            onUnload = { viewModel.unload() }
+                            onUnload = { viewModel.unload() },
+                            onOpenImages = onOpenImages
                         )
                     }
                 }
@@ -121,7 +125,8 @@ fun ModelsScreen(viewModel: ModelsViewModel = hiltViewModel()) {
                             onCancel = { viewModel.cancelDownload(row.spec.id) },
                             onDelete = { viewModel.delete(row.spec.id) },
                             onLoad = { viewModel.load(row.spec.id) },
-                            onUnload = { viewModel.unload() }
+                            onUnload = { viewModel.unload() },
+                            onOpenImages = onOpenImages
                         )
                     }
                 }
@@ -138,7 +143,8 @@ private fun ModelCard(
     onCancel: () -> Unit,
     onDelete: () -> Unit,
     onLoad: () -> Unit,
-    onUnload: () -> Unit
+    onUnload: () -> Unit,
+    onOpenImages: () -> Unit
 ) {
     val spec = row.spec
     LiquidGlassSurface(
@@ -247,15 +253,15 @@ private fun ModelCard(
                     TextButton(onClick = onDelete) { Text("Delete") }
                 }
                 is ModelStatus.Installed -> if (spec.kind == ModelKind.IMAGE_GENERATION) {
-                    // Honest state: the weights are here, but no diffusion
-                    // runtime is wired up yet, so there is nothing to load.
+                    // The image engine is driven from its own screen, where the
+                    // model is loaded lazily on the first generation.
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "Image generation is not available in this build yet.",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.weight(1f)
+                        PrimaryButton(
+                            text = "Generate",
+                            onClick = onOpenImages,
+                            modifier = Modifier.height(40.dp)
                         )
+                        Spacer(Modifier.weight(1f))
                         TextButton(onClick = onDelete) { Text("Delete") }
                     }
                 } else {
@@ -285,22 +291,11 @@ private fun ModelCard(
                     }
                 }
                 is ModelStatus.NotInstalled -> if (row.isUsable) {
-                    Column {
-                        if (spec.kind == ModelKind.IMAGE_GENERATION) {
-                            Text(
-                                text = "Image generation is not available in this build yet — " +
-                                    "downloading this keeps it ready for when it is.",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Spacer(Modifier.height(Spacing.xs))
-                        }
-                        PrimaryButton(
-                            text = "Download ${formatBytes(spec.downloadBytes)}",
-                            onClick = onDownload,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
+                    PrimaryButton(
+                        text = "Download ${formatBytes(spec.downloadBytes)}",
+                        onClick = onDownload,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 } else {
                     Text(
                         text = "Not suitable for this device",

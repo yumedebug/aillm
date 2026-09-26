@@ -71,6 +71,7 @@ app/        Navigation, setup wizard, models & history screens, DI wiring
 core/       Design system, preferences, device probe, Room database
 ai/         Model catalogue/repository/downloader, prompts, engine interfaces
 llm/        llama.cpp JNI bridge (C++ via NDK/CMake) + chat engine
+diffusion/  stable-diffusion.cpp JNI bridge (C++ via NDK/CMake) + image engine
 memory/     Memory engine, extraction, semantic search, memory UI
 search/     Web-search intent detection, browser hand-off, online sources flag
 chat/       Chat UI, streaming view model, message history
@@ -80,7 +81,7 @@ onnx/       String-in / score-out ONNX sequence classifiers
 ```
 
 Tech: Kotlin, Jetpack Compose, Material 3 (with a custom design system), Hilt,
-Room, DataStore, OkHttp, Coil, llama.cpp, ONNX Runtime.
+Room, DataStore, OkHttp, Coil, llama.cpp, stable-diffusion.cpp, ONNX Runtime.
 
 ## Design language
 
@@ -171,8 +172,21 @@ The image bytes go straight from memory into mtmd, the marker-aware prompt is
 built with the family's chat template, and decoding streams token by token like
 any other reply.
 
-Image generation is still catalogued and downloadable but has no runtime yet;
-the Models screen says so rather than offering a button that cannot work.
+### Image generation
+
+Text-to-image runs on **stable-diffusion.cpp**, compiled from source by the
+`:diffusion` module just like `:llm` does for llama.cpp: the repository pins a
+commit, and its patched ggml is pulled as a submodule. The library is linked
+with `--exclude-libs,ALL` so its ggml cannot collide at runtime with the one
+llama.cpp brings in.
+
+There is exactly **one** image model: Lykon's **Absolute Reality 1.81**, a
+photoreal SD 1.5 merge, downloaded as a single `.safetensors` from
+[`Lykon/AbsoluteReality`](https://huggingface.co/Lykon/AbsoluteReality) (the
+repo's own `absolute-reality-1.81` is diffusers-format, split into separate
+unet/vae/text_encoder files). Weights are quantized to Q8_0 on load, and the
+model is loaded lazily on the first generation — it is ~2 GB resident, and the
+image screen is reached from Models.
 
 ### Sequence classifiers (`:onnx`)
 

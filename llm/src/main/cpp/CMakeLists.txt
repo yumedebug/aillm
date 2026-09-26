@@ -49,6 +49,11 @@ target_include_directories(aillm_llama PRIVATE
 
 target_compile_options(aillm_llama PRIVATE -O3 -fexceptions -frtti)
 
+# Localise the ggml/llama symbols pulled in from static archives so they cannot
+# be interposed by (or interpose) the other ggml that :diffusion brings in
+# through stable-diffusion.cpp. Only our JNI entry points stay exported.
+target_link_options(aillm_llama PRIVATE -Wl,--exclude-libs,ALL)
+
 target_link_libraries(aillm_llama PRIVATE
         llama
         mtmd
