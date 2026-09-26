@@ -63,7 +63,34 @@ jobs:
           echo "$KEYSTORE_BASE64" | base64 -d > /tmp/release.keystore
           export KEYSTORE_FILE=/tmp/release.keystore
         fi
-        gradle assembleRelease assembleDebug --no-daemon --stacktrace
+        gradle assembleRelease assembleDebug --no-daemon --stacktrace 2>&1 | tee build-session.log
+
+    - name: Publish compile evidence on failure
+      if: failure()
+      run: |
+        set +e
+        LOG=build-session.log
+        if [ ! -f "$LOG" ]; then touch "$LOG"; fi
+        errors=$(grep -E "^e: |error:|error C|fatal error|warning: unable|FAILURE|What went wrong|Execution failed|Caused by|CMake Error" "$LOG" | head -300)
+        {
+          echo "# Release build failure — captured $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo
+          echo "Commit: $GITHUB_SHA"
+          echo "Run URL: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          echo
+          echo '```'
+          echo "$errors"
+          echo '```'
+        } > release-report.md
+        git config user.email "ci@github-actions.local"
+        git config user.name "CI Report Bot"
+        git fetch origin ci-report:ci-report 2>/dev/null || git branch -f ci-report HEAD
+        git checkout ci-report 2>/dev/null || git checkout -b ci-report
+        mkdir -p build
+        cp release-report.md build/release-report.md
+        git add build/release-report.md
+        git commit -m "ci-report: release build failure evidence for $GITHUB_SHA" --allow-empty 2>/dev/null || true
+        git push origin ci-report --force
 
     - name: Determine release tag
       id: tag
