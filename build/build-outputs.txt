@@ -1,0 +1,7 @@
+# Release build outputs for 3da419db2bbc580977585c41d444b1205829c788
+
+## find app/build/outputs -name *.apk
+
+## any .apk in the workspace
+
+## app/build/outputs/apk tree
