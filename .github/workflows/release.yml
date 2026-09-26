@@ -120,8 +120,34 @@ jobs:
           ### Install
           Download and install the APK on your device. Allow installation from unknown sources.
         files: |
-          app/build/outputs/apk/debug/*.apk
-          app/build/outputs/apk/release/*.apk
+          app/build/outputs/apk/**/*.apk
+        fail_on_unmatched_files: true
         draft: false
         prerelease: false
         generate_release_notes: false
+
+    - name: Report build outputs
+      if: always()
+      run: |
+        set +e
+        {
+          echo "# Release build outputs for $GITHUB_SHA"
+          echo
+          echo '## find app/build/outputs -name *.apk'
+          find app/build/outputs -name '*.apk' 2>/dev/null
+          echo
+          echo '## any .apk in the workspace'
+          find . -name '*.apk' -not -path './.git/*' 2>/dev/null
+          echo
+          echo '## app/build/outputs/apk tree'
+          ls -laR app/build/outputs/apk 2>/dev/null
+        } > build-outputs.txt
+        git config user.email "ci@github-actions.local"
+        git config user.name "CI Report Bot"
+        git fetch origin ci-report:ci-report 2>/dev/null || git branch -f ci-report HEAD
+        git checkout ci-report 2>/dev/null || git checkout -b ci-report
+        mkdir -p build
+        cp build-outputs.txt build/build-outputs.txt
+        git add build/build-outputs.txt
+        git commit -m "ci-report: release build outputs for $GITHUB_SHA" --allow-empty 2>/dev/null || true
+        git push origin ci-report --force
