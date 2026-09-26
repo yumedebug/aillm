@@ -69,7 +69,7 @@ void progress_callback(int step, int steps, float time, void *) {
     JNIEnv * env = nullptr;
     bool attached = false;
     if (g_vm->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_6) != JNI_OK) {
-        if (g_vm->AttachCurrentThread(reinterpret_cast<void **>(&env), nullptr) != JNI_OK) {
+        if (g_vm->AttachCurrentThread(&env, nullptr) != JNI_OK) {
             return;
         }
         attached = true;
