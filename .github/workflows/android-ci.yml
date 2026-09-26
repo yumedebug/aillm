@@ -53,7 +53,9 @@ jobs:
           native-${{ runner.os }}-
 
     - name: Build Debug APK
-      run: gradle assembleDebug --no-daemon --stacktrace 2>&1 | tee build-session.log
+      run: |
+        set -o pipefail
+        gradle assembleDebug --no-daemon --stacktrace 2>&1 | tee build-session.log
 
     - name: Upload Debug APK
       uses: actions/upload-artifact@v4
@@ -86,6 +88,6 @@ jobs:
         git checkout ci-report 2>/dev/null
         mkdir -p build
         cp ci-report.md build/ci-report.md
-        git add build/ci-report.md
+        git add -f build/ci-report.md
         git commit -m "ci-report: build failure evidence for $GITHUB_SHA" --allow-empty 2>/dev/null || true
         git push origin ci-report --force

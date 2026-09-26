@@ -59,6 +59,7 @@ jobs:
         KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
         KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
       run: |
+        set -o pipefail
         if [ -n "$KEYSTORE_BASE64" ]; then
           echo "$KEYSTORE_BASE64" | base64 -d > /tmp/release.keystore
           export KEYSTORE_FILE=/tmp/release.keystore
@@ -89,6 +90,7 @@ jobs:
         mkdir -p build
         cp release-report.md build/release-report.md
         git add build/release-report.md
+        git add -f build/release-report.md
         git commit -m "ci-report: release build failure evidence for $GITHUB_SHA" --allow-empty 2>/dev/null || true
         git push origin ci-report --force
 
@@ -148,6 +150,6 @@ jobs:
         git checkout ci-report 2>/dev/null || git checkout -b ci-report
         mkdir -p build
         cp build-outputs.txt build/build-outputs.txt
-        git add build/build-outputs.txt
+        git add -f build/build-outputs.txt
         git commit -m "ci-report: release build outputs for $GITHUB_SHA" --allow-empty 2>/dev/null || true
         git push origin ci-report --force
