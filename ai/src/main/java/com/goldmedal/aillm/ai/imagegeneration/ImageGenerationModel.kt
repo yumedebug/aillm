@@ -15,7 +15,8 @@ interface ImageGenerationModel : OnDeviceEngine {
         width: Int = 512,
         height: Int = 512,
         steps: Int = 30,
-        guidanceScale: Float = 7.5f
+        guidanceScale: Float = 7.5f,
+        sampler: ImageSampler = ImageSampler.DEFAULT
     ): Result<Bitmap>
 
     /**

@@ -16,6 +16,17 @@
   It is the single image model — no menu, one honest choice — downloaded as a
   single `.safetensors` and loaded lazily on the first generation, quantized to
   Q8_0 so it fits a phone. Open it from **Models → Images → Generate**.
+- **A second, much faster image model.** **DreamShaper 8 LCM** is an
+  LCM-distilled SD 1.5 that lands a picture in **4-8 steps** instead of 25. The
+  image screen switches between it and Absolute Reality, and each model brings
+  its own sampler, guidance and step counts.
+- **Generated pictures can leave the app.** Every result now has **Save**
+  (into `Pictures/AILLM` via MediaStore — no storage permission on Android 10+)
+  and **Share** (into any app through a FileProvider).
+- **Lighter and smarter chat models.** **LFM2 1.2B** (0.7 GB) gives strong
+  replies at the lowest memory of anything in the library, and **Qwen3 1.7B**
+  brings a reasoning-trained assistant into the light tier with thinking
+  suppressed, so replies stay immediate.
 - **LAYA is the main screen.** The app opens on the Decision AI: A as multiple
   lines (one subject each), B as one line, and a 判定 button that runs every A
   through **Laya Multilingual** independently — `東京都 → 日本のものか？` —

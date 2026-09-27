@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Only the staged-share folder is exposed. Generated pictures are handed to
+  another app from here; nothing else in app storage is reachable.
+-->
+<paths>
+    <cache-path name="shared_images" path="shared/" />
+</paths>

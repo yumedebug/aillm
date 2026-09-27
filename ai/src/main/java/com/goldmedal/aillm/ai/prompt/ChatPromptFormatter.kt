@@ -11,6 +11,9 @@ enum class ChatPromptFormat {
     /** Qwen2.5 / Qwen2.5-Coder — ChatML. */
     CHATML,
 
+    /** Qwen3 — ChatML with the `/no_think` soft switch, so replies are immediate. */
+    QWEN3,
+
     /** Llama 3.x header format. */
     LLAMA3,
 
@@ -47,6 +50,7 @@ object ChatPromptFormatter {
         val prepared = if (imageMarker.isNullOrBlank()) messages else injectMarker(messages, imageMarker)
         return when (format) {
             ChatPromptFormat.CHATML -> chatml(prepared)
+            ChatPromptFormat.QWEN3 -> qwen3(prepared)
             ChatPromptFormat.LLAMA3 -> llama3(prepared)
             ChatPromptFormat.GEMMA -> gemma(prepared)
             ChatPromptFormat.PHI3 -> phi3(prepared)
@@ -76,6 +80,24 @@ object ChatPromptFormatter {
             append(message.content.trim()).append("<|im_end|>\n")
         }
         append("<|im_start|>assistant\n")
+    }
+
+    /**
+     * Qwen3 is ChatML plus a hybrid reasoning mode. Left alone it opens every
+     * reply with a long ` thinking` block, which is the wrong default for a chat
+     * screen — so the documented `/no_think` soft switch is appended to the last
+     * user turn and the model answers directly.
+     */
+    private fun qwen3(messages: List<ChatMessage>): String {
+        val lastUser = messages.indexOfLast { it.role == "user" }
+        val marked = messages.mapIndexed { index, message ->
+            if (index == lastUser) {
+                message.copy(content = "${message.content.trim()} /no_think")
+            } else {
+                message
+            }
+        }
+        return chatml(marked)
     }
 
     // ----------------------------------------------------------------- Llama 3

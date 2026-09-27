@@ -176,7 +176,8 @@ extern "C" JNIEXPORT jintArray JNICALL
 Java_com_goldmedal_aillm_ai_diffusion_DiffusionNative_nativeGenerate(
         JNIEnv * env, jobject,
         jlong handle, jstring j_prompt, jstring j_negative,
-        jint width, jint height, jint steps, jfloat guidance, jlong seed) {
+        jint width, jint height, jint steps, jfloat guidance, jlong seed,
+        jint sample_method, jint scheduler) {
     auto * session = reinterpret_cast<Session *>(handle);
     if (session == nullptr || session->ctx == nullptr) {
         return nullptr;
@@ -199,10 +200,17 @@ Java_com_goldmedal_aillm_ai_diffusion_DiffusionNative_nativeGenerate(
     params.batch_count               = 1;
     params.sample_params.sample_steps       = static_cast<int>(steps);
     params.sample_params.guidance.txt_cfg   = guidance;
-    // Absolute Reality is an SD 1.5 checkpoint; DPM++ 2M Karras is the sampler
-    // it was tuned with.
-    params.sample_params.sample_method      = DPMPP2M_SAMPLE_METHOD;
-    params.sample_params.scheduler          = KARRAS_SCHEDULER;
+    // A negative value means "whatever suits this model", which is how a plain
+    // SD 1.5 checkpoint gets DPM++ 2M Karras and a distilled one gets its own
+    // method, instead of one sampler being hardcoded for every model.
+    params.sample_params.sample_method =
+            (sample_method >= 0)
+                ? static_cast<enum sample_method_t>(sample_method)
+                : sd_get_default_sample_method(session->ctx);
+    params.sample_params.scheduler =
+            (scheduler >= 0)
+                ? static_cast<enum scheduler_t>(scheduler)
+                : sd_get_default_scheduler(session->ctx, params.sample_params.sample_method);
 
     sd_image_t * images = nullptr;
     int count = 0;

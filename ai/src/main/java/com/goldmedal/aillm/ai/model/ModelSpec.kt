@@ -1,10 +1,14 @@
 package com.goldmedal.aillm.ai.model
 
 import com.goldmedal.aillm.ai.decision.LAYA_MODEL_ID
+import com.goldmedal.aillm.ai.imagegeneration.ImageSampler
 import com.goldmedal.aillm.ai.prompt.ChatPromptFormat
 
-/** The one image-generation model in the library. */
+/** The default image-generation model in the library (quality). */
 const val IMAGE_MODEL_ID = "absolute-reality-1.81"
+
+/** The fast image-generation model (LCM, 4-8 steps). */
+const val DREAMSHAPER_LCM_MODEL_ID = "dreamshaper-8-lcm"
 
 /** The independent model roles. Each one is loaded separately, on demand. */
 enum class ModelKind(val label: String, val blurb: String) {
@@ -52,6 +56,17 @@ data class ModelSpec(
     val qualityRating: Int,
     val description: String,
     val tags: List<String> = emptyList(),
+
+    // --- image generation only -------------------------------------------------
+    /** The sampler the checkpoint was distilled for (see [ImageSampler]). */
+    val sampler: ImageSampler = ImageSampler.DEFAULT,
+    /** Steps the model works well at out of the box. */
+    val defaultSteps: Int = 25,
+    /** Classifier-free guidance the model works well at out of the box. */
+    val defaultGuidance: Float = 7f,
+    /** The step counts offered for this model in the image screen. */
+    val stepPresets: List<Int> = listOf(15, 25, 35),
+
     /** The chat template this family was trained on. */
     val chatFormat: ChatPromptFormat = ChatPromptFormat.PLAIN
 ) {
@@ -134,8 +149,48 @@ object ModelCatalog {
             contextLength = 32768,
             speedRating = 5,
             qualityRating = 2,
-            description = "The lightest chat model here. Snappy replies on almost any phone.",
+            description = "A light, dependable chat model. Snappy replies on almost any phone.",
             tags = listOf("fastest", "light")
+        ),
+        ModelSpec(
+            id = "lfm2-1.2b-q4",
+            chatFormat = ChatPromptFormat.CHATML,
+            name = "LFM2 1.2B",
+            family = "Liquid AI",
+            kind = ModelKind.CHAT,
+            parameters = "1.2B",
+            quantization = "Q4_K_M",
+            fileName = "LFM2-1.2B-Q4_K_M.gguf",
+            downloadUrl = "https://huggingface.co/LiquidAI/LFM2-1.2B-GGUF/resolve/main/LFM2-1.2B-Q4_K_M.gguf",
+            sizeBytes = 730_893_248L,
+            minRamBytes = 2 * GB,
+            recommendedRamBytes = 3 * GB,
+            contextLength = 32768,
+            speedRating = 5,
+            qualityRating = 3,
+            description = "Great replies for its size, and the least memory of any model here. " +
+                "Built for phones.",
+            tags = listOf("recommended", "fastest", "light")
+        ),
+        ModelSpec(
+            id = "qwen3-1.7b-q4",
+            chatFormat = ChatPromptFormat.QWEN3,
+            name = "Qwen3 1.7B",
+            family = "Qwen",
+            kind = ModelKind.CHAT,
+            parameters = "1.7B",
+            quantization = "Q4_K_M",
+            fileName = "Qwen3-1.7B-Q4_K_M.gguf",
+            downloadUrl = "https://huggingface.co/unsloth/Qwen3-1.7B-GGUF/resolve/main/Qwen3-1.7B-Q4_K_M.gguf",
+            sizeBytes = 1_107_409_472L,
+            minRamBytes = 2 * GB,
+            recommendedRamBytes = 3 * GB,
+            contextLength = 32768,
+            speedRating = 5,
+            qualityRating = 4,
+            description = "A small model that reasons before it answers. The strongest " +
+                "assistant in the light tier.",
+            tags = listOf("recommended", "reasoning", "light")
         ),
         ModelSpec(
             id = "gemma-2-2b-it-q4",
@@ -419,10 +474,10 @@ object ModelCatalog {
         ),
 
         // ---------------------------------------------------- Image generation
-        // One image model, not a menu: Lykon's Absolute Reality 1.81. It is a
-        // photoreal SD 1.5 merge and is packaged as a single .safetensors that
-        // stable-diffusion.cpp loads directly, unlike the diffusers-format
-        // mirror of the same release (separate unet/vae/text_encoder files).
+        // Both entries are single-file .safetensors that stable-diffusion.cpp
+        // loads directly, unlike the diffusers-format mirrors of the same
+        // releases (separate unet/vae/text_encoder files). They differ in what
+        // they trade: steps for quality, or speed by distilling the sampler.
         ModelSpec(
             id = IMAGE_MODEL_ID,
             name = "Absolute Reality 1.81",
@@ -433,6 +488,10 @@ object ModelCatalog {
             fileName = "AbsoluteReality_1.8.1_pruned.safetensors",
             downloadUrl = "https://huggingface.co/Lykon/AbsoluteReality/resolve/main/AbsoluteReality_1.8.1_pruned.safetensors",
             sizeBytes = 2_132_625_432L,
+            sampler = ImageSampler.DEFAULT,
+            defaultSteps = 25,
+            defaultGuidance = 7f,
+            stepPresets = listOf(15, 25, 35),
             minRamBytes = 6 * GB,
             recommendedRamBytes = 8 * GB,
             contextLength = 0,
@@ -440,6 +499,31 @@ object ModelCatalog {
             qualityRating = 5,
             description = "Lykon's photorealistic SD 1.5 checkpoint. Generates pictures fully on-device.",
             tags = listOf("recommended", "photoreal")
+        ),
+        ModelSpec(
+            id = DREAMSHAPER_LCM_MODEL_ID,
+            name = "DreamShaper 8 LCM",
+            family = "Lykon",
+            kind = ModelKind.IMAGE_GENERATION,
+            parameters = "0.9B",
+            quantization = "F16",
+            fileName = "DreamShaper8_LCM.safetensors",
+            downloadUrl = "https://huggingface.co/Lykon/dreamshaper-8-lcm/resolve/main/DreamShaper8_LCM.safetensors",
+            sizeBytes = 2_133_804_992L,
+            // LCM distillation is what makes the few steps work; sampling it
+            // the full 25-step DPM++ way would be both slower and softer.
+            sampler = ImageSampler.LCM,
+            defaultSteps = 6,
+            defaultGuidance = 1.5f,
+            stepPresets = listOf(4, 6, 8),
+            minRamBytes = 6 * GB,
+            recommendedRamBytes = 8 * GB,
+            contextLength = 0,
+            speedRating = 5,
+            qualityRating = 4,
+            description = "The fast one: an LCM-distilled SD 1.5 that lands a picture in " +
+                "4-8 steps instead of 25.",
+            tags = listOf("fastest", "quick")
         )
     )
 

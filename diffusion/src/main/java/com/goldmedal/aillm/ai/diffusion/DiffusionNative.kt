@@ -28,6 +28,17 @@ object DiffusionNative {
     /** `SD_TYPE_COUNT`: keep the weights exactly as they are in the file. */
     const val WEIGHT_TYPE_AS_IS = 45
 
+    /**
+     * Sampler/scheduler values as declared in stable-diffusion.h. `DEFAULT`
+     * asks the library for the method that suits the loaded model, which is what
+     * a full-step checkpoint wants; LCM-distilled checkpoints need the LCM
+     * sampler and the LCM schedule to converge in a handful of steps.
+     */
+    const val SAMPLE_METHOD_DEFAULT = -1
+    const val SCHEDULER_DEFAULT = -1
+    const val SAMPLE_METHOD_LCM = 9
+    const val SCHEDULER_LCM = 9
+
     var loadError: String? = null
         private set
 
@@ -62,7 +73,9 @@ object DiffusionNative {
         height: Int,
         steps: Int,
         guidance: Float,
-        seed: Long
+        seed: Long,
+        sampleMethod: Int,
+        scheduler: Int
     ): IntArray?
 
     external fun nativeLastWidth(handle: Long): Int

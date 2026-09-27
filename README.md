@@ -183,13 +183,31 @@ commit, and its patched ggml is pulled as a submodule. The library is linked
 with `--exclude-libs,ALL` so its ggml cannot collide at runtime with the one
 llama.cpp brings in.
 
-There is exactly **one** image model: Lykon's **Absolute Reality 1.81**, a
-photoreal SD 1.5 merge, downloaded as a single `.safetensors` from
-[`Lykon/AbsoluteReality`](https://huggingface.co/Lykon/AbsoluteReality) (the
-repo's own `absolute-reality-1.81` is diffusers-format, split into separate
-unet/vae/text_encoder files). Weights are quantized to Q8_0 on load, and the
-model is loaded lazily on the first generation — it is ~2 GB resident, and the
-image screen is reached from Models.
+There are **two** image models, and the image screen switches between them:
+
+| Model | Steps | Why |
+|-------|-------|-----|
+| **Absolute Reality 1.81** (Lykon) | 15–35 | Photoreal SD 1.5 merge. Quality first. |
+| **DreamShaper 8 LCM** (Lykon) | 4–8 | LCM-distilled SD 1.5. The fast one. |
+
+Both are single `.safetensors` files that stable-diffusion.cpp loads directly,
+from [`Lykon/AbsoluteReality`](https://huggingface.co/Lykon/AbsoluteReality) and
+[`Lykon/dreamshaper-8-lcm`](https://huggingface.co/Lykon/dreamshaper-8-lcm) (the
+repos' own diffusers trees are split into separate unet/vae/text_encoder files,
+so the single-file one is what is downloaded).
+
+A model is not just weights: the sampler it was distilled for travels with it in
+the catalogue (`ImageSampler`), and the bridge asks stable-diffusion.cpp for the
+model's own default when a checkpoint has no opinion. Selecting a model adopts
+its steps, guidance and sampler instead of carrying a 25-step setting onto a
+4-step checkpoint.
+
+Weights are quantized to Q8_0 on load, and the model is loaded lazily on the
+first generation — it is ~2 GB resident, and the image screen is reached from
+Models. A finished picture can be **saved to `Pictures/AILLM`** (through
+MediaStore, so no storage permission on Android 10+) or **shared** with another
+app through a FileProvider — a generated image no longer has to stay inside the
+app.
 
 ### Sequence classifiers (`:onnx`)
 

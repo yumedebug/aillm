@@ -2,6 +2,7 @@ package com.goldmedal.aillm.ai.diffusion
 
 import android.graphics.Bitmap
 import com.goldmedal.aillm.ai.imagegeneration.ImageGenerationModel
+import com.goldmedal.aillm.ai.imagegeneration.ImageSampler
 import com.goldmedal.aillm.ai.model.ModelSpec
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.withContext
@@ -19,6 +20,10 @@ import kotlin.random.Random
  * Loading quantizes the weights to Q8_0 on the fly, which roughly halves the
  * resident memory compared with the fp16 file on disk and is what makes a
  * ~2 GB checkpoint usable on a phone.
+ *
+ * Both catalogue checkpoints share this one native session: which model is
+ * resident is the repository's decision, and the sampler travels with the
+ * request, so a full-step checkpoint and an LCM one are driven identically.
  */
 class SdImageGenerationModel : ImageGenerationModel {
 
@@ -89,7 +94,8 @@ class SdImageGenerationModel : ImageGenerationModel {
         width: Int,
         height: Int,
         steps: Int,
-        guidanceScale: Float
+        guidanceScale: Float,
+        sampler: ImageSampler
     ): Result<Bitmap> = withContext(inferenceDispatcher) {
         val currentHandle = handle
         if (!loaded || currentHandle == 0L) {
@@ -103,6 +109,18 @@ class SdImageGenerationModel : ImageGenerationModel {
         val safeHeight = snap(height)
         val safeSteps = steps.coerceIn(1, 100)
 
+        // The sampler is a property of the checkpoint, not of the request: an
+        // LCM model sampled with DPM++ 2M over 25 steps is both slower and
+        // worse than the same model on the LCM sampler over 6.
+        val sampleMethod = when (sampler) {
+            ImageSampler.DEFAULT -> DiffusionNative.SAMPLE_METHOD_DEFAULT
+            ImageSampler.LCM -> DiffusionNative.SAMPLE_METHOD_LCM
+        }
+        val scheduler = when (sampler) {
+            ImageSampler.DEFAULT -> DiffusionNative.SCHEDULER_DEFAULT
+            ImageSampler.LCM -> DiffusionNative.SCHEDULER_LCM
+        }
+
         val pixels = DiffusionNative.nativeGenerate(
             handle = currentHandle,
             prompt = prompt,
@@ -111,7 +129,9 @@ class SdImageGenerationModel : ImageGenerationModel {
             height = safeHeight,
             steps = safeSteps,
             guidance = guidanceScale,
-            seed = Random.nextLong()
+            seed = Random.nextLong(),
+            sampleMethod = sampleMethod,
+            scheduler = scheduler
         )
 
         val outWidth = DiffusionNative.nativeLastWidth(currentHandle)
