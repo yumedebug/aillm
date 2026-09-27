@@ -37,7 +37,7 @@ import com.goldmedal.aillm.ai.model.ModelStatus
 import com.goldmedal.aillm.core.design.AillmTopBar
 import com.goldmedal.aillm.core.design.BadgeTone
 import com.goldmedal.aillm.core.design.DownloadProgress
-import com.goldmedal.aillm.core.design.LiquidGlassSurface
+import com.goldmedal.aillm.core.design.GlassPanel
 import com.goldmedal.aillm.core.design.PrimaryButton
 import com.goldmedal.aillm.core.design.Spacing
 import com.goldmedal.aillm.core.design.StatusBadge
@@ -185,7 +185,7 @@ fun ImageScreen(
 
             bitmap?.let { image ->
                 Spacer(Modifier.height(Spacing.lg))
-                LiquidGlassSurface(
+                GlassPanel(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = Spacing.lg)
@@ -249,7 +249,7 @@ private fun ModelStateCard(
     onDownload: () -> Unit,
     onCancel: () -> Unit
 ) {
-    LiquidGlassSurface(
+    GlassPanel(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = Spacing.lg)

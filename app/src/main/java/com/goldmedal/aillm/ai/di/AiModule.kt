@@ -15,7 +15,7 @@ import com.goldmedal.aillm.ai.vision.VisionModel
 import com.goldmedal.aillm.core.database.InstalledModelDao
 import com.goldmedal.aillm.core.preferences.AppSettings
 import com.goldmedal.aillm.memory.embedding.EmbeddingModel
-import com.goldmedal.aillm.onnx.VonDecisionModel
+import com.goldmedal.aillm.onnx.LayaDecisionModel
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -53,12 +53,13 @@ object AiModule {
     fun provideImageGenerationModel(): ImageGenerationModel = SdImageGenerationModel()
 
     /**
-     * The Decision AI (wfzyx/von) runs on its own ONNX runtime, so it is a
-     * separate engine from the chat model and can be resident at the same time.
+     * The Decision AI (convaiinnovations/laya-multilingual) runs on its own
+     * ONNX runtime, so it is a separate engine from the chat model and can be
+     * resident at the same time.
      */
     @Provides
     @Singleton
-    fun provideDecisionModel(): DecisionModel = VonDecisionModel()
+    fun provideDecisionModel(): DecisionModel = LayaDecisionModel()
 
     @Provides
     @Singleton

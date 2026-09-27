@@ -2,12 +2,12 @@ package com.goldmedal.aillm.ai.decision
 
 import com.goldmedal.aillm.ai.engine.OnDeviceEngine
 
-/** The id of the wfzyx/von entry in the model catalogue. */
-const val VON_MODEL_ID = "wfzyx-von"
+/** The id of the convaiinnovations/laya-multilingual entry in the catalogue. */
+const val LAYA_MODEL_ID = "laya-multilingual"
 
 /** How a verdict was produced. */
 enum class DecisionSource {
-    /** The real wfzyx/von weights ran on-device (single-file ONNX export). */
+    /** The real laya-multilingual weights ran on-device (single-file ONNX export). */
     MODEL,
 
     /** The built-in lexical fallback answered instead. */
@@ -17,7 +17,7 @@ enum class DecisionSource {
 /**
  * The three-way verdict scale.
  *
- * The probability Von reports for "A holds of B" is cut into:
+ * The probability Laya reports for "A holds of B" is cut into:
  *
  * ```
  * probability >= 51%          -> Y
@@ -58,8 +58,9 @@ data class DecisionResult(
 )
 
 /**
- * The Decision AI: wfzyx/von, a non-autoregressive "System One" model that
- * judges whether "A is B" holds, in a single forward pass.
+ * The Decision AI: convaiinnovations/laya-multilingual, a non-autoregressive
+ * "System One" decision model covering 100+ languages that judges whether
+ * "A is B" holds in a single forward pass.
  *
  * Unlike the chat engine it never streams text and never takes a conversation:
  * a proposition in, a probability out, and the probability — not the model —

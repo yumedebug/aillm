@@ -36,7 +36,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.goldmedal.aillm.core.database.FileMemoryEntity
 import com.goldmedal.aillm.core.design.AillmTopBar
 import com.goldmedal.aillm.core.design.EmptyState
-import com.goldmedal.aillm.core.design.LiquidGlassSurface
+import com.goldmedal.aillm.core.design.GlassPanel
 import com.goldmedal.aillm.core.design.Spacing
 import com.goldmedal.aillm.core.design.formatBytes
 import com.goldmedal.aillm.files.viewmodel.FileViewModel
@@ -112,7 +112,7 @@ private fun FileRow(
     onDelete: () -> Unit
 ) {
     val date = SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(file.createdAt))
-    LiquidGlassSurface(modifier = Modifier.fillMaxWidth()) {
+    GlassPanel(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.padding(start = Spacing.lg, end = Spacing.xs, top = Spacing.md, bottom = Spacing.md),
             verticalAlignment = Alignment.CenterVertically

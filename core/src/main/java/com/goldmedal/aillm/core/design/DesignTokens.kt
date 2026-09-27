@@ -57,24 +57,24 @@ object AillmPalette {
 }
 
 /**
- * Glass tokens.
+ * Surface tokens.
  *
- * The app is a frosted-glass surface over a blurred gradient: panels are
- * translucent, separated from the backdrop by a hairline highlight instead of a
- * drop shadow, which is what keeps them feeling like glass rather than paper.
+ * The app floats translucent panels over a blurred gradient backdrop. Panels
+ * are separated from that backdrop by a soft elevation shadow and a hairline
+ * edge, which is what keeps them reading as modern glass rather than as paper.
  */
-object AillmGlass {
+object AillmSurface {
     /** Radius of the ambient background blur. Large on purpose. */
-    val ambientBlur = 110.dp
+    val ambientBlur = 120.dp
 
     /** Blur applied to floating panels such as the navigation pill. */
-    val panelBlur = 40.dp
+    val panelBlur = 24.dp
 
-    /** Hairline highlight on the top edge of a glass panel. */
+    /** Hairline edge on a translucent panel. */
     val borderWidth = 1.dp
 
-    const val BorderAlphaDark = 0.10f
-    const val BorderAlphaLight = 0.75f
+    const val BorderAlphaDark = 0.08f
+    const val BorderAlphaLight = 0.70f
 }
 
 val AillmDarkColors = darkColorScheme(

@@ -35,7 +35,7 @@ Four independent roles, loaded on demand and never all at once:
 | Coding | Writing, reviewing and explaining code |
 | Vision | Image understanding (describe photos, screenshots, documents) |
 | Image generation | Text-to-image |
-| Decision | Yes/No verdicts on a proposition (wfzyx/von) |
+| Decision | Yes/No verdicts on a proposition (convaiinnovations/laya-multilingual) |
 
 Every model is fetched directly from a **public Hugging Face repository** that
 has been checked to exist and to need no login. Chat and Coding share one
@@ -85,28 +85,31 @@ Room, DataStore, OkHttp, Coil, llama.cpp, stable-diffusion.cpp, ONNX Runtime.
 
 ## Design language
 
-The app is one frosted-glass surface floating on a heavily blurred gradient.
-Screens keep a **transparent** Scaffold container, so the ambient layer is what
-every panel sits on; panels are separated from it by a hairline highlight rather
-than a drop shadow.
+Translucent panels float on a heavily blurred gradient. Screens keep a
+**transparent** Scaffold container, so the ambient layer (`AillmAmbientBackground`)
+is what every panel sits on, and the blur in that backdrop is what gives the
+surfaces their depth.
 
-On top of that sits a **liquid-glass** layer (`core/design/LiquidGlass.kt`) with
-the two things that make glass read as glass rather than as a flat translucent
-card:
+On top of it sits a restrained surface layer (`core/design/Surfaces.kt`): panels
+are translucent, but they are separated from the backdrop the way current UI
+systems do it —
 
-- a specular sheen that travels across a panel, so the surface behaves like it
-  is refracting a moving light source, and
-- a springy, slightly overshooting press response instead of a Material ripple,
-  so a touch displaces the surface.
+- a soft elevation shadow and a hairline `outlineVariant` edge, rather than a
+  specular rim light, and
+- a gentle top-to-bottom gradient between the theme's translucent `surface` and
+  its container tone, so a panel has depth without refracting anything.
 
-`LiquidGlassSurface` (panels, history rows, model cards, settings groups),
-`LiquidGlassFab` (the **+** on History and the **+** on Memory) and
-`LiquidAppear` (fade-and-settle on entry) are the building blocks; the bottom
-navigation is a single floating pill with four destinations whose selection
-pill springs in. Everything is dependency-free: `Modifier.border` with a
-gradient brush, springs from `animateFloatAsState`, and one `InfiniteTransition`
-for the sheen — opt-in per surface, because an endless animation on every row
-would be a waste of frames.
+`GlassPanel` (panels, history rows, model cards, settings groups), `GlassFab`
+(the **+** on History and the **+** on Memory) and `AillmAppear` (fade-and-settle
+on entry) are the building blocks; the bottom navigation is a single floating
+pill whose selection animates in. Touch feedback is the normal Material ripple
+(with a short, non-overshooting press scale where a panel is tappable).
+Everything is dependency-free: `Modifier.shadow`, `Modifier.background` with a
+gradient brush, and `Modifier.border`.
+
+The design deliberately moved away from an earlier **liquid-glass** treatment
+(travelling sheen plus springy, overshooting press) toward a calmer, more modern
+reading of the same translucent idea.
 
 ## Memory
 
@@ -203,20 +206,22 @@ file whose input is `tensor(string)` and whose output is Float logits.
 extensions library so the tokenizer node resolves. See [`onnx/README.md`](onnx/README.md)
 for the export command and the Kotlin usage.
 
-### Decision AI — `wfzyx/von` (the VON screen)
+### Decision AI — `convaiinnovations/laya-multilingual` (the LAYA screen)
 
-Von is not a chat model and is not treated as one. It is a **non-autoregressive**
-ModernBERT-large (395M) with an NLI head: it judges whether "A holds of B" in a
-single encoder pass and answers with a **probability** — no generation, no
-prose, no conversation. It runs on the `:onnx` runtime.
+Laya is not a chat model and is not treated as one. It is a **non-autoregressive**
+mmBERT-base (322M) with a decision head trained from scratch: it judges whether
+"A holds of B" in a single encoder pass and answers with a **probability** — no
+generation, no prose, no conversation. It runs on the `:onnx` runtime. The
+multilingual checkpoint is used because it covers 100+ languages, so a Japanese
+pair is judged on the model's own terms rather than by a fallback.
 
-The **VON screen is the app's main screen** (the first bottom-bar destination),
+The **LAYA screen is the app's main screen** (the first bottom-bar destination),
 built for one job, in the shape of a form:
 
 - **A** — one subject per line (multi-line, scrollable): `東京都` / `埼玉県` /
   `カリフォルニア州`…
 - **B** — one line: `日本のもの`
-- **判定** — walks each A line through Von independently: `A → B か？`, and
+- **判定** — walks each A line through Laya independently: `A → B か？`, and
   fills the result list in progressively (`Waiting… → Checking… → verdict`).
 
 Each verdict is cut from the probability alone:
@@ -228,24 +233,24 @@ probability <= 49%          -> N
 ```
 
 and the list — one row per A — is the pipeline made visible:
-`A ↓ Von ↓ Bとの成立確率 ↓ Y / N / C`.
+`A ↓ Laya ↓ Bとの成立確率 ↓ Y / N / C`.
 
 - The catalogue entry downloads the real files from
-  [`wfzyx/von`](https://huggingface.co/wfzyx/von) — the weights, tokenizer,
-  `config.json` (which is where the head's label order comes from) and the
-  authors' fitted `calibration.json`.
+  [`convaiinnovations/laya-multilingual`](https://huggingface.co/convaiinnovations/laya-multilingual)
+  — the weights, the encoder's `config.json`, the tokenizer and the
+  checkpoint's `rl_agent_config.json`.
 - Since the repository ships safetensors rather than an executable graph, the
-  ONNX export from `onnx/export` is what actually runs: the logits are read as
-  entailment → holds, contradiction → does not hold, with the calibrated
-  temperature applied.
-- Von **loads automatically at app start** (`Loading Von…` → `Von Ready`), and
+  ONNX export from `onnx/export` is what actually runs: the graph is asked the
+  `noul` question "does B hold of A?" and the head is read as P(true), with the
+  checkpoint's temperature applied.
+- Laya **loads automatically at app start** (`Loading Laya…` → `Laya Ready`), and
   the 判定 button is disabled until the model is Ready. A load error is shown
   in words, with the way out (re-download from Models).
-- Von is loaded **alone**: loading Von unloads any resident chat model and
-  loading a chat model unloads Von — the two runtimes never sit in memory
-  together, and no second model is ever loaded alongside Von.
+- Laya is loaded **alone**: loading Laya unloads any resident chat model and
+  loading a chat model unloads Laya — the two runtimes never sit in memory
+  together, and no second model is ever loaded alongside Laya.
 - Until the export is present — or if a verdict cannot be read — the built-in
-  lexical fallback answers, and the row says `Fallback` instead of `Von`,
+  lexical fallback answers, and the row says `Fallback` instead of `Laya`,
   rather than passing a guess off as the model's.
 
 ### Web search (no API, no key)

@@ -25,7 +25,7 @@ import com.goldmedal.aillm.ai.model.ModelFit
 import com.goldmedal.aillm.ai.model.ModelStatus
 import com.goldmedal.aillm.core.design.BadgeTone
 import com.goldmedal.aillm.core.design.DownloadProgress
-import com.goldmedal.aillm.core.design.LiquidGlassSurface
+import com.goldmedal.aillm.core.design.GlassPanel
 import com.goldmedal.aillm.core.design.PrimaryButton
 import com.goldmedal.aillm.core.design.RatingStars
 import com.goldmedal.aillm.core.design.SectionHeader
@@ -131,7 +131,7 @@ fun SetupScreen(viewModel: SetupViewModel = hiltViewModel()) {
 @Composable
 private fun DeviceCard(viewModel: SetupViewModel) {
     val profile = viewModel.profile
-    LiquidGlassSurface(
+    GlassPanel(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = Spacing.lg)
@@ -182,7 +182,7 @@ private fun SetupModelCard(
     onCancel: () -> Unit
 ) {
     val spec = row.spec
-    LiquidGlassSurface(
+    GlassPanel(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = Spacing.lg)

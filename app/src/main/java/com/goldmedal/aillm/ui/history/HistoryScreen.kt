@@ -33,9 +33,9 @@ import com.goldmedal.aillm.chat.viewmodel.HistoryViewModel
 import com.goldmedal.aillm.core.database.ChatEntity
 import com.goldmedal.aillm.core.design.AillmTopBar
 import com.goldmedal.aillm.core.design.EmptyState
-import com.goldmedal.aillm.core.design.LiquidAppear
-import com.goldmedal.aillm.core.design.LiquidGlassFab
-import com.goldmedal.aillm.core.design.LiquidGlassSurface
+import com.goldmedal.aillm.core.design.AillmAppear
+import com.goldmedal.aillm.core.design.GlassFab
+import com.goldmedal.aillm.core.design.GlassPanel
 import com.goldmedal.aillm.core.design.Spacing
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -55,7 +55,7 @@ fun HistoryScreen(
         floatingActionButton = {
             // Start a new conversation without going back to the Chat tab first:
             // the controller clears it, this navigates to it.
-            LiquidGlassFab(
+            GlassFab(
                 onClick = {
                     viewModel.startNewChat()
                     onNewChat()
@@ -79,7 +79,7 @@ fun HistoryScreen(
                 )
             }
         } else {
-            LiquidAppear(modifier = Modifier.padding(padding)) {
+            AillmAppear(modifier = Modifier.padding(padding)) {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(
@@ -110,7 +110,7 @@ private fun HistoryRow(
     onDelete: () -> Unit
 ) {
     val date = SimpleDateFormat("MMM d, HH:mm", Locale.getDefault()).format(Date(chat.updatedAt))
-    LiquidGlassSurface(
+    GlassPanel(
         modifier = Modifier.fillMaxWidth(),
         onClick = onClick
     ) {

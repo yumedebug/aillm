@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.goldmedal.aillm.ai.decision.DecisionModel
 import com.goldmedal.aillm.ai.decision.DecisionResult
-import com.goldmedal.aillm.ai.decision.VON_MODEL_ID
+import com.goldmedal.aillm.ai.decision.LAYA_MODEL_ID
 import com.goldmedal.aillm.ai.model.ModelRepository
 import com.goldmedal.aillm.ai.model.ModelSpec
 import com.goldmedal.aillm.ai.model.ModelStatus
@@ -20,17 +20,18 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
- * The VON screen's state: one batch of judgments.
+ * The LAYA screen's state: one batch of judgments.
  *
  * A is entered as multiple lines — one subject per line — and B as one line.
- * Pressing 判定 walks the A lines one at a time through Von: "A → B か？".
+ * Pressing 判定 walks the A lines one at a time through Laya: "A → B か？".
  * Each row moves through Checking → verdict + probability on its own, so the
  * list fills in progressively.
  *
  * Model status comes from [ModelRepository] rather than the engine directly,
  * so this screen and the Models library never disagree about what is installed
- * or resident. Von loads automatically at app start (see
- * `ModelRepositoryImpl.autoLoadVon`); this view model only ever needs to react.
+ * or resident. Laya loads automatically at app start (see
+ * `ModelRepositoryImpl.autoLoadDecisionModel`); this view model only ever needs
+ * to react.
  */
 @HiltViewModel
 class DecisionViewModel @Inject constructor(
@@ -38,15 +39,15 @@ class DecisionViewModel @Inject constructor(
     private val decisionModel: DecisionModel
 ) : ViewModel() {
 
-    /** The Von entry, as described in the catalogue. */
-    val spec: ModelSpec? = modelRepository.spec(VON_MODEL_ID)
+    /** The Laya entry, as described in the catalogue. */
+    val spec: ModelSpec? = modelRepository.spec(LAYA_MODEL_ID)
 
     val status: StateFlow<ModelStatus> = modelRepository.states
-        .map { it[VON_MODEL_ID] ?: ModelStatus.NotInstalled }
+        .map { it[LAYA_MODEL_ID] ?: ModelStatus.NotInstalled }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.Eagerly,
-            initialValue = modelRepository.status(VON_MODEL_ID)
+            initialValue = modelRepository.status(LAYA_MODEL_ID)
         )
 
     private val _subjects = MutableStateFlow("")
@@ -78,12 +79,12 @@ class DecisionViewModel @Inject constructor(
 
     init {
         // If the startup auto-load has not happened yet (or failed because the
-        // download finished mid-session), press it along as soon as Von is
+        // download finished mid-session), press it along as soon as Laya is
         // installed and not already up.
         viewModelScope.launch {
             status.collect { current ->
                 if (current is ModelStatus.Installed && !_running.value) {
-                    modelRepository.load(VON_MODEL_ID)
+                    modelRepository.load(LAYA_MODEL_ID)
                 }
             }
         }

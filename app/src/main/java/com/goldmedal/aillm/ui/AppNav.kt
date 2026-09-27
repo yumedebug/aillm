@@ -50,9 +50,9 @@ import androidx.navigation.navArgument
 import com.goldmedal.aillm.BuildConfig
 import com.goldmedal.aillm.chat.ui.ChatScreen
 import com.goldmedal.aillm.core.design.AillmMotion
-import com.goldmedal.aillm.core.design.LiquidGlassSurface
+import com.goldmedal.aillm.core.design.GlassPanel
 import com.goldmedal.aillm.core.design.Spacing
-import com.goldmedal.aillm.core.design.liquidPress
+import com.goldmedal.aillm.core.design.surfacePress
 import com.goldmedal.aillm.files.ui.FileScreen
 import com.goldmedal.aillm.memory.ui.MemoryScreen
 import com.goldmedal.aillm.settings.ui.AboutScreen
@@ -69,7 +69,7 @@ import com.goldmedal.aillm.ui.image.ImageScreen
 import com.goldmedal.aillm.ui.models.ModelsScreen
 
 object AppRoutes {
-    // VON is the app's front door: the decision screen is where the app opens.
+    // LAYA is the app's front door: the decision screen is where the app opens.
     const val DECISION = "decision"
     const val CHAT = "chat"
     const val CHAT_WITH_ID = "chat/{chatId}"
@@ -228,17 +228,17 @@ fun AppNav() {
 }
 
 /**
- * A floating glass pill rather than a full-width bar: four destinations only,
- * and the ambient gradient stays visible around it.
+ * A floating translucent pill rather than a full-width bar: five destinations
+ * only, and the blurred ambient gradient stays visible around it.
  *
- * The selected destination is a translucent accent pill whose colour and width
- * spring in, so switching tabs reads as liquid filling the space rather than a
+ * The selected destination is an accent pill whose colour and width animate
+ * in, so switching tabs reads as a deliberate slide of emphasis rather than a
  * hard swap of backgrounds.
  */
 @Composable
 private fun AppBottomBar(currentRoute: String?, onSelect: (String) -> Unit) {
     val items = listOf(
-        BottomItem(AppRoutes.DECISION, "VON", Icons.Default.ThumbUp),
+        BottomItem(AppRoutes.DECISION, "LAYA", Icons.Default.ThumbUp),
         BottomItem(AppRoutes.CHAT, "Chat", Icons.Default.ChatBubbleOutline),
         BottomItem(AppRoutes.HISTORY, "History", Icons.Default.History),
         BottomItem(AppRoutes.MODELS, "Models", Icons.Default.Memory),
@@ -251,10 +251,9 @@ private fun AppBottomBar(currentRoute: String?, onSelect: (String) -> Unit) {
             .navigationBarsPadding()
             .padding(start = Spacing.lg, end = Spacing.lg, bottom = Spacing.md)
     ) {
-        LiquidGlassSurface(
+        GlassPanel(
             modifier = Modifier.fillMaxWidth(),
-            shape = MaterialTheme.shapes.extraLarge,
-            animatedSheen = true
+            shape = MaterialTheme.shapes.extraLarge
         ) {
             Row(
                 modifier = Modifier
@@ -278,7 +277,7 @@ private fun AppBottomBar(currentRoute: String?, onSelect: (String) -> Unit) {
                         modifier = Modifier
                             .weight(1f)
                             .clip(MaterialTheme.shapes.large)
-                            .liquidPress(interactionSource, pressedScale = 0.94f)
+                            .surfacePress(interactionSource, pressedScale = 0.96f)
                             .clickable(interactionSource = interactionSource, indication = null) {
                                 onSelect(item.route)
                             }

@@ -1,4 +1,4 @@
-# AILLM — local-first on-device AI (release v1.4.0)
+# AILLM — local-first on-device AI (release v1.4.1)
 
 **Everything runs on your phone. Nothing leaves the device.**
 
@@ -16,20 +16,24 @@
   It is the single image model — no menu, one honest choice — downloaded as a
   single `.safetensors` and loaded lazily on the first generation, quantized to
   Q8_0 so it fits a phone. Open it from **Models → Images → Generate**.
-- **VON is the main screen.** The app opens on the Decision AI: A as multiple
+- **LAYA is the main screen.** The app opens on the Decision AI: A as multiple
   lines (one subject each), B as one line, and a 判定 button that runs every A
-  through Von independently — `東京都 → 日本のものか？` — filling the result
-  list in row by row (`Waiting… / Checking…` → `Y 98.7%`).
+  through **Laya Multilingual** independently — `東京都 → 日本のものか？` —
+  filling the result list in row by row (`Waiting… / Checking…` → `Y 98.7%`).
+  The multilingual checkpoint covers 100+ languages, so Japanese is judged on
+  the model's own terms.
 - **Y / N / C verdict scale:** probability ≥ 51% → Y, ≤ 49% → N, in between →
-  C (Not Clear). The probability is Von's own; the scale is arithmetic.
-- **Von loads at startup** (`Loading Von…` → `Von Ready`), fully on-device via
-  ONNX Runtime; nothing is sent anywhere. 判定 stays disabled until Ready, and
-  a load failure is explained in words.
-- **Von loads alone, never combined:** loading Von unloads any resident chat
-  model, and loading a chat model unloads Von. No chat LLM (Qwen etc.) is ever
-  co-loaded with Von.
+  C (Not Clear). The probability is Laya's own; the scale is arithmetic.
+- **Laya loads at startup** (`Loading Laya…` → `Laya Ready`), fully on-device
+  via ONNX Runtime; nothing is sent anywhere. 判定 stays disabled until Ready,
+  and a load failure is explained in words.
+- **Laya loads alone, never combined:** loading Laya unloads any resident chat
+  model, and loading a chat model unloads Laya. No chat LLM (Qwen etc.) is ever
+  co-loaded with Laya.
 - **Rebuilt UI/UX and design system** — dark-first, minimal, a single restrained
   accent, and shared components instead of default Material cards everywhere.
+  The surface layer is now a modern translucent panel (soft elevation + hairline
+  edge over the blurred backdrop) rather than the earlier liquid-glass treatment.
 - **Bottom navigation: Chat / History / Models / Settings.** Memory, Files and
   advanced settings are intentionally one level deeper.
 - **Models are not bundled.** A fresh install with no models is a normal state;
@@ -40,9 +44,10 @@
   Image generation. Resumable, cancellable, and verified before use.
 - **Chat:** streaming replies, Markdown with copyable code blocks, message copy,
   regenerate, stop, image and document attachments, automatic conversation titles.
-- **Decision AI (wfzyx/von):** a downloadable Yes/No decision model, separate
-  from chat — one proposition in, `Y` or `N` out, with the confidence and a badge
-  saying whether the real model or the built-in fallback answered.
+- **Decision AI (convaiinnovations/laya-multilingual):** a downloadable Yes/No
+  decision model, separate from chat — one proposition in, `Y` or `N` out, with
+  the confidence and a badge saying whether the real model or the built-in
+  fallback answered.
 - **Web search through your browser:** ask for something current and the chat
   model turns the request into a query, which is handed to the device's browser.
   No search API, no key, no backend, and results are never fetched by the app —

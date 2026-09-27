@@ -43,8 +43,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.goldmedal.aillm.core.database.UserMemoryEntity
 import com.goldmedal.aillm.core.design.AillmTopBar
 import com.goldmedal.aillm.core.design.EmptyState
-import com.goldmedal.aillm.core.design.LiquidGlassFab
-import com.goldmedal.aillm.core.design.LiquidGlassSurface
+import com.goldmedal.aillm.core.design.GlassFab
+import com.goldmedal.aillm.core.design.GlassPanel
 import com.goldmedal.aillm.core.design.Spacing
 import com.goldmedal.aillm.core.design.StatusBadge
 import com.goldmedal.aillm.core.design.BadgeTone
@@ -91,7 +91,7 @@ fun MemoryScreen(
             )
         },
         floatingActionButton = {
-            LiquidGlassFab(
+            GlassFab(
                 onClick = { showAdd = true },
                 icon = Icons.Default.Add,
                 contentDescription = "Add memory"
@@ -157,7 +157,7 @@ fun MemoryScreen(
             }
 
             notice?.let { message ->
-                LiquidGlassSurface(
+                GlassPanel(
                     shape = MaterialTheme.shapes.medium,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -249,7 +249,7 @@ fun MemoryCard(
     val date = remember(memory.updatedAt) {
         SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(memory.updatedAt))
     }
-    LiquidGlassSurface(modifier = Modifier.fillMaxWidth()) {
+    GlassPanel(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(Spacing.lg)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 StatusBadge(text = memory.category.lowercase(), tone = BadgeTone.ACCENT)

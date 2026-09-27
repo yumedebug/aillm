@@ -27,7 +27,7 @@ Setup
 Run
 ---
     python export_tokenizer_model.py \\
-        --model convaiinnovations/laya \\
+        --model convaiinnovations/laya-multilingual \\
         --output build/laya.onnx \\
         --labels build/laya.labels.json \\
         --int8 \\
@@ -397,7 +397,7 @@ def verify(model_path: Path, model_id: str, texts: Iterable[str], trust_remote_c
 # --------------------------------------------------------------------------- #
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--model", default="convaiinnovations/laya", help="Hugging Face model id")
+    parser.add_argument("--model", default="convaiinnovations/laya-multilingual", help="Hugging Face model id")
     parser.add_argument("--output", default="build/classifier.onnx", help="where the merged model is written")
     parser.add_argument("--labels", default=None, help="where to write the class names as JSON")
     parser.add_argument("--opset", type=int, default=17, help="ONNX opset for the transformer export")

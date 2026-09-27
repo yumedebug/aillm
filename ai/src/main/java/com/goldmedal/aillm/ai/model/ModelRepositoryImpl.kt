@@ -3,7 +3,7 @@ package com.goldmedal.aillm.ai.model
 import android.content.Context
 import com.goldmedal.aillm.ai.chat.ChatModel
 import com.goldmedal.aillm.ai.decision.DecisionModel
-import com.goldmedal.aillm.ai.decision.VON_MODEL_ID
+import com.goldmedal.aillm.ai.decision.LAYA_MODEL_ID
 import com.goldmedal.aillm.ai.engine.OnDeviceEngine
 import com.goldmedal.aillm.ai.imagegeneration.ImageGenerationModel
 import com.goldmedal.aillm.ai.vision.VisionModel
@@ -55,26 +55,26 @@ class ModelRepositoryImpl @Inject constructor(
     init {
         scope.launch {
             restore()
-            // Von is the app's front door: once the previous session's model is
-            // accounted for, Von's ONNX runtime is brought up for the launch.
+            // Laya is the app's front door: once the previous session's model is
+            // accounted for, Laya's ONNX runtime is brought up for the launch.
             // It runs after restore so the two loads cannot race; if a chat
-            // model was restored, Von replaces it as the resident engine.
-            autoLoadVon()
+            // model was restored, Laya replaces it as the resident engine.
+            autoLoadDecisionModel()
         }
     }
 
     /**
-     * Loads Von on startup when it is installed.
+     * Loads the Decision model on startup when it is installed.
      *
-     * Von never shares the device with a resident chat model — [load] unloads
-     * whichever side is already up — so this leaves Von as the only resident
-     * engine. When Von is not installed the app keeps its normal state: the
+     * Laya never shares the device with a resident chat model — [load] unloads
+     * whichever side is already up — so this leaves Laya as the only resident
+     * engine. When Laya is not installed the app keeps its normal state: the
      * Decision screen offers the download and nothing else is disturbed.
      */
-    private suspend fun autoLoadVon() {
-        if (ModelCatalog.byId(VON_MODEL_ID) == null) return
-        if (status(VON_MODEL_ID).isInstalled) {
-            runCatching { load(VON_MODEL_ID) }
+    private suspend fun autoLoadDecisionModel() {
+        if (ModelCatalog.byId(LAYA_MODEL_ID) == null) return
+        if (status(LAYA_MODEL_ID).isInstalled) {
+            runCatching { load(LAYA_MODEL_ID) }
         }
     }
 
@@ -113,10 +113,10 @@ class ModelRepositoryImpl @Inject constructor(
             }
         }
         _states.update { it + map }
-        // Von is the front door: when it is installed it always takes the
-        // device on startup (autoLoadVon), so the last session's chat model is
-        // not brought back just to be evicted again a moment later.
-        if (!status(VON_MODEL_ID).isInstalled) {
+        // Laya is the front door: when it is installed it always takes the
+        // device on startup (autoLoadDecisionModel), so the last session's chat
+        // model is not brought back just to be evicted again a moment later.
+        if (!status(LAYA_MODEL_ID).isInstalled) {
             restoreLastModel()
         }
     }
@@ -132,8 +132,8 @@ class ModelRepositoryImpl @Inject constructor(
         val lastId = runCatching { appSettings.lastUsedModelId.first() }.getOrNull() ?: return
         val spec = ModelCatalog.byId(lastId) ?: return
         if (spec.kind == ModelKind.IMAGE_GENERATION) return
-        // Von is brought up by [autoLoadVon] instead; it is never "the last
-        // chat model" and must not be restored as one.
+        // Laya is brought up by [autoLoadDecisionModel] instead; it is never
+        // "the last chat model" and must not be restored as one.
         if (spec.kind == ModelKind.DECISION) return
         if (!status(lastId).isInstalled) {
             runCatching { appSettings.clearLastUsedModelId() }
@@ -218,11 +218,12 @@ class ModelRepositoryImpl @Inject constructor(
         if (!status(id).isInstalled) {
             return Result.failure(IllegalStateException("${spec.name} is not installed"))
         }
-        // A load already under way must not be started again — startup (autoLoadVon)
-        // and a screen reacting to the same install could otherwise race.
+        // A load already under way must not be started again — startup
+        // (autoLoadDecisionModel) and a screen reacting to the same install
+        // could otherwise race.
         if (status(id) is ModelStatus.Loading) return Result.success(Unit)
 
-        // Neither Von nor the image engine shares memory with a chat model:
+        // Neither Laya nor the image engine shares memory with a chat model:
         // loading one side unloads the other first. All three are too large to
         // sit in RAM together on a phone.
         if (spec.kind in HEAVY_KINDS) {
@@ -269,7 +270,7 @@ class ModelRepositoryImpl @Inject constructor(
                 loadedIds[spec.kind] = id
                 runCatching { installedModelDao.touch(id) }
                 // Remembered so the next launch can bring the same model back.
-                // Von is loaded automatically on every launch, so it is never
+                // Laya is loaded automatically on every launch, so it is never
                 // remembered as the "last used" chat model.
                 if (spec.kind !in HEAVY_KINDS) {
                     runCatching { appSettings.setLastUsedModelId(id) }

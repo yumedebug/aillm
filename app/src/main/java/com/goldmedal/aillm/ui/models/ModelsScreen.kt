@@ -37,7 +37,7 @@ import com.goldmedal.aillm.core.design.AillmTopBar
 import com.goldmedal.aillm.core.design.BadgeTone
 import com.goldmedal.aillm.core.design.DownloadProgress
 import com.goldmedal.aillm.core.design.EmptyState
-import com.goldmedal.aillm.core.design.LiquidGlassSurface
+import com.goldmedal.aillm.core.design.GlassPanel
 import com.goldmedal.aillm.core.design.PrimaryButton
 import com.goldmedal.aillm.core.design.RatingStars
 import com.goldmedal.aillm.core.design.SectionHeader
@@ -147,7 +147,7 @@ private fun ModelCard(
     onOpenImages: () -> Unit
 ) {
     val spec = row.spec
-    LiquidGlassSurface(
+    GlassPanel(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = Spacing.lg)

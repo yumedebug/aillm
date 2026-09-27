@@ -3,12 +3,12 @@ package com.goldmedal.aillm.onnx
 /**
  * Lexical fallback verdicts for the Decision model.
  *
- * Used only when the real Von weights cannot run (no exported ONNX graph), so
- * the feature answers instead of failing. Deliberately conservative: genuine
- * knowledge questions return null, and the caller answers with a low-confidence
- * default rather than pretending to know.
+ * Used only when the real Laya Multilingual weights cannot run (no exported
+ * ONNX graph), so the feature answers instead of failing. Deliberately
+ * conservative: genuine knowledge questions return null, and the caller
+ * answers with a low-confidence default rather than pretending to know.
  */
-object VonDecisionRules {
+object LayaDecisionRules {
 
     data class Verdict(val yes: Boolean, val confidence: Float)
 

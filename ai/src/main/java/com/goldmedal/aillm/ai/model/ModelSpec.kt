@@ -1,6 +1,6 @@
 package com.goldmedal.aillm.ai.model
 
-import com.goldmedal.aillm.ai.decision.VON_MODEL_ID
+import com.goldmedal.aillm.ai.decision.LAYA_MODEL_ID
 import com.goldmedal.aillm.ai.prompt.ChatPromptFormat
 
 /** The one image-generation model in the library. */
@@ -294,48 +294,48 @@ object ModelCatalog {
 
         // ------------------------------------------------------------ Decision
         ModelSpec(
-            id = VON_MODEL_ID,
-            name = "Von",
-            family = "wfzyx",
+            id = LAYA_MODEL_ID,
+            name = "Laya Multilingual",
+            family = "convaiinnovations",
             kind = ModelKind.DECISION,
-            parameters = "395M",
-            quantization = "F32",
+            parameters = "322M",
+            quantization = "F16",
             fileName = "model.safetensors",
-            downloadUrl = "https://huggingface.co/wfzyx/von/resolve/main/model.safetensors",
-            sizeBytes = 1_583_355_740L,
-            // The config carries the head's label order (entailment / neutral /
-            // contradiction); calibration.json carries the temperature the
-            // authors fitted on their validation set.
+            downloadUrl = "https://huggingface.co/convaiinnovations/laya-multilingual/resolve/main/model.safetensors",
+            sizeBytes = 643_835_514L,
+            // The repository keeps the encoder config under `encoder/` and the
+            // tokenizer under `tokenizer/`; the downloader stores everything
+            // flat, so each file is named after its leaf.
             auxiliaryFiles = listOf(
                 ModelFile(
                     fileName = "config.json",
-                    url = "https://huggingface.co/wfzyx/von/resolve/main/config.json",
-                    sizeBytes = 6_349L
+                    url = "https://huggingface.co/convaiinnovations/laya-multilingual/resolve/main/encoder/config.json",
+                    sizeBytes = 1_938L
                 ),
                 ModelFile(
                     fileName = "tokenizer.json",
-                    url = "https://huggingface.co/wfzyx/von/resolve/main/tokenizer.json",
-                    sizeBytes = 3_583_485L
+                    url = "https://huggingface.co/convaiinnovations/laya-multilingual/resolve/main/tokenizer/tokenizer.json",
+                    sizeBytes = 34_363_188L
                 ),
                 ModelFile(
                     fileName = "tokenizer_config.json",
-                    url = "https://huggingface.co/wfzyx/von/resolve/main/tokenizer_config.json",
-                    sizeBytes = 599L
+                    url = "https://huggingface.co/convaiinnovations/laya-multilingual/resolve/main/tokenizer/tokenizer_config.json",
+                    sizeBytes = 502L
                 ),
                 ModelFile(
-                    fileName = "calibration.json",
-                    url = "https://huggingface.co/wfzyx/von/resolve/main/calibration.json",
-                    sizeBytes = 126L
+                    fileName = "rl_agent_config.json",
+                    url = "https://huggingface.co/convaiinnovations/laya-multilingual/resolve/main/rl_agent_config.json",
+                    sizeBytes = 472L
                 )
             ),
             minRamBytes = 6 * GB,
             recommendedRamBytes = 8 * GB,
-            contextLength = 2048,
+            contextLength = 1024,
             speedRating = 4,
             qualityRating = 4,
-            description = "Answers Yes or No rather than chatting: is this true, " +
-                "is it a good idea? One pass, no prose.",
-            tags = listOf("decision", "yes/no")
+            description = "Judges a proposition Yes or No in 100+ languages rather " +
+                "than chatting. One pass, no prose.",
+            tags = listOf("decision", "yes/no", "multilingual")
         ),
 
         // -------------------------------------------------------------- Vision

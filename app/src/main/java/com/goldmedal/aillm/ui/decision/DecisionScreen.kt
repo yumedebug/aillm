@@ -39,7 +39,7 @@ import com.goldmedal.aillm.core.design.AillmTopBar
 import com.goldmedal.aillm.core.design.BadgeTone
 import com.goldmedal.aillm.core.design.DownloadProgress
 import com.goldmedal.aillm.core.design.EmptyState
-import com.goldmedal.aillm.core.design.LiquidGlassSurface
+import com.goldmedal.aillm.core.design.GlassPanel
 import com.goldmedal.aillm.core.design.PrimaryButton
 import com.goldmedal.aillm.core.design.Spacing
 import com.goldmedal.aillm.core.design.StatusBadge
@@ -47,7 +47,7 @@ import com.goldmedal.aillm.core.design.formatBytes
 import java.util.Locale
 
 /**
- * The VON screen — the app's main screen. Von is not a chat model: it judges
+ * The LAYA screen — the app's main screen. Laya is not a chat model: it judges
  * "does A hold of B?" for every A line, one forward pass each, and answers
  * with a probability that becomes Y, N or C. A form, never a conversation.
  */
@@ -72,7 +72,7 @@ fun DecisionScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             AillmTopBar(
-                title = "VON",
+                title = "LAYA",
                 subtitle = "AはBか？",
                 onBack = onBack
             )
@@ -206,7 +206,7 @@ private fun FieldLabel(label: String, supporting: String) {
 }
 
 /**
- * The model's state, compressed to what the flow needs: Von must say Ready
+ * The model's state, compressed to what the flow needs: Laya must say Ready
  * before 判定 does anything, and a failure is explained in words.
  */
 @Composable
@@ -216,7 +216,7 @@ private fun ModelStateCard(
     onDownload: () -> Unit,
     onCancel: () -> Unit
 ) {
-    LiquidGlassSurface(
+    GlassPanel(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = Spacing.lg)
@@ -224,7 +224,7 @@ private fun ModelStateCard(
         Column(modifier = Modifier.padding(Spacing.lg)) {
             when (status) {
                 is ModelStatus.Ready -> Row(verticalAlignment = Alignment.CenterVertically) {
-                    StatusBadge("Von Ready", BadgeTone.SUCCESS)
+                    StatusBadge("Laya Ready", BadgeTone.SUCCESS)
                     Spacer(Modifier.width(Spacing.sm))
                     Text(
                         text = "${spec.name} · ${spec.parameters}",
@@ -233,7 +233,7 @@ private fun ModelStateCard(
                     )
                 }
                 is ModelStatus.Loading -> Row(verticalAlignment = Alignment.CenterVertically) {
-                    StatusBadge("Loading Von…", BadgeTone.ACCENT)
+                    StatusBadge("Loading Laya…", BadgeTone.ACCENT)
                     Text(
                         text = "端末内でONNXモデルをロードしています",
                         style = MaterialTheme.typography.labelSmall,
@@ -242,7 +242,7 @@ private fun ModelStateCard(
                 }
                 is ModelStatus.Downloading -> Column {
                     Text(
-                        text = "Downloading Von…",
+                        text = "Downloading Laya…",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -281,13 +281,13 @@ private fun ModelStateCard(
                 }
                 is ModelStatus.NotInstalled -> Column {
                     Text(
-                        text = "Von is not installed",
+                        text = "Laya is not installed",
                         style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(Modifier.height(Spacing.xs))
                     Text(
-                        text = "huggingface.co/wfzyx/von から直接ダウンロードします。" +
+                        text = "huggingface.co/convaiinnovations/laya-multilingual から直接ダウンロードします。" +
                             "推論はすべて端末内で行われ、データは外部に送信されません。",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -313,7 +313,7 @@ private fun ResultRow(
     index: Int,
     row: DecisionViewModel.Row
 ) {
-    LiquidGlassSurface(
+    GlassPanel(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = Spacing.lg)
@@ -413,17 +413,17 @@ private fun VerdictView(result: DecisionResult) {
 
 /**
  * The pipeline the finished list represents, spelled out once:
- * A ↓ Von ↓ Bとの成立確率 ↓ Y/N/C.
+ * A ↓ Laya ↓ Bとの成立確率 ↓ Y/N/C.
  */
 @Composable
 private fun FlowNote() {
-    LiquidGlassSurface(
+    GlassPanel(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = Spacing.lg)
     ) {
         Text(
-            text = "A ↓ Von ↓ Bとの成立確率 ↓ Y / N / C",
+            text = "A ↓ Laya ↓ Bとの成立確率 ↓ Y / N / C",
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,

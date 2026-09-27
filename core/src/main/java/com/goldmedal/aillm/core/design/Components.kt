@@ -118,7 +118,7 @@ fun SettingsGroup(
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         if (title != null) SectionHeader(title)
-        LiquidGlassSurface(
+        GlassPanel(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = Spacing.lg)
@@ -365,21 +365,20 @@ fun formatBytes(bytes: Long): String {
 }
 
 /**
- * The hairline that separates a glass panel from the blurred backdrop. A light
- * edge instead of a drop shadow is what makes the panels read as glass.
+ * The hairline that separates a translucent panel from the blurred backdrop.
+ * Kept as a helper for screens that draw an edge without a full panel.
  */
 @Composable
 fun glassBorderColor(): Color =
     if (LocalAillmIsDark.current) {
-        Color.White.copy(alpha = AillmGlass.BorderAlphaDark)
+        Color.White.copy(alpha = AillmSurface.BorderAlphaDark)
     } else {
-        Color.White.copy(alpha = AillmGlass.BorderAlphaLight)
+        Color.White.copy(alpha = AillmSurface.BorderAlphaLight)
     }
 
 /**
- * A translucent panel with the design system's refraction gradient and rim
- * light. Kept as the low-level primitive; [LiquidGlassSurface] is the one to
- * reach for when the panel should also react to touch.
+ * A translucent panel. Kept as the low-level primitive; [GlassPanel] is the
+ * one to reach for when the panel should also react to touch.
  */
 @Composable
 fun GlassSurface(
@@ -387,7 +386,7 @@ fun GlassSurface(
     shape: Shape = MaterialTheme.shapes.large,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    LiquidGlassSurface(modifier = modifier, shape = shape) {
+    GlassPanel(modifier = modifier, shape = shape) {
         Column(content = content)
     }
 }
@@ -437,7 +436,7 @@ fun AillmAmbientBackground(modifier: Modifier = Modifier) {
                     .align(orb.alignment)
                     .offset(x = orb.dx, y = orb.dy)
                     .size(orb.size)
-                    .blur(AillmGlass.ambientBlur, BlurredEdgeTreatment.Unbounded)
+                    .blur(AillmSurface.ambientBlur, BlurredEdgeTreatment.Unbounded)
                     .background(
                         Brush.radialGradient(
                             colors = listOf(orb.color.copy(alpha = orb.alpha), Color.Transparent)

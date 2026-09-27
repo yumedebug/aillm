@@ -64,7 +64,7 @@ import com.goldmedal.aillm.chat.viewmodel.ChatViewModel
 import com.goldmedal.aillm.chat.websearch.WebSearchFallback
 import com.goldmedal.aillm.core.database.MessageEntity
 import com.goldmedal.aillm.core.design.AillmTopBar
-import com.goldmedal.aillm.core.design.LiquidGlassSurface
+import com.goldmedal.aillm.core.design.GlassPanel
 import com.goldmedal.aillm.core.design.Spacing
 
 @Composable
@@ -266,7 +266,7 @@ private fun WebSearchCard(
     var copied by remember { mutableStateOf<String?>(null) }
     val url = fallback.url
 
-    LiquidGlassSurface(modifier = modifier) {
+    GlassPanel(modifier = modifier) {
         Column(modifier = Modifier.padding(Spacing.lg)) {
             Text(
                 text = "Web search",
@@ -349,7 +349,7 @@ private fun EmptyChat(modelReady: Boolean, onChooseModel: () -> Unit) {
         )
         if (!modelReady) {
             Spacer(Modifier.height(Spacing.lg))
-            LiquidGlassSurface(modifier = Modifier.fillMaxWidth()) {
+            GlassPanel(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(Spacing.lg)) {
                     Text(
                         text = "No model yet",
@@ -402,7 +402,7 @@ private fun Composer(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (attachedImage != null) {
-                    LiquidGlassSurface(shape = MaterialTheme.shapes.medium) {
+                    GlassPanel(shape = MaterialTheme.shapes.medium) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             AsyncImage(
                                 model = attachedImage,
@@ -418,7 +418,7 @@ private fun Composer(
                     }
                 }
                 if (attachedFileName != null) {
-                    LiquidGlassSurface(shape = MaterialTheme.shapes.medium) {
+                    GlassPanel(shape = MaterialTheme.shapes.medium) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 text = attachedFileName ?: "",
@@ -435,10 +435,9 @@ private fun Composer(
             }
         }
 
-        LiquidGlassSurface(
+        GlassPanel(
             modifier = Modifier.fillMaxWidth(),
-            shape = MaterialTheme.shapes.extraLarge,
-            animatedSheen = true
+            shape = MaterialTheme.shapes.extraLarge
         ) {
             Row(verticalAlignment = Alignment.Bottom) {
                 Box {

@@ -27,7 +27,7 @@ python -m venv .venv && . .venv/bin/activate
 pip install "optimum[onnxruntime]" onnx onnxruntime onnxruntime-extensions transformers
 
 python export_tokenizer_model.py \
-  --model convaiinnovations/laya \
+  --model convaiinnovations/laya-multilingual \
   --output build/laya.onnx \
   --labels build/laya.labels.json \
   --int8 \
@@ -36,7 +36,7 @@ python export_tokenizer_model.py \
 
 | flag | meaning |
 |------|---------|
-| `--model` | any public HF sequence-classification repo (`convaiinnovations/laya`, `convaiinnovations/laya-multilingual`, …) |
+| `--model` | any public HF sequence-classification repo (`convaiinnovations/laya-multilingual`, `convaiinnovations/laya`, …) |
 | `--output` | where the merged model is written |
 | `--labels` | writes the class names as a JSON array, next to the model |
 | `--int8` | also emits a dynamically quantised copy (`*.int8.onnx`) — much smaller, slightly less accurate |
@@ -88,42 +88,43 @@ so the `BertTokenizer` node in the graph resolves without any extra setup. The
 session is created lazily and reused; a session is expensive to build, so keep
 one `StringOnnxClassifier` alive rather than creating it per call.
 
-## 3. The Decision AI: `wfzyx/von`
+## 3. The Decision AI: `convaiinnovations/laya-multilingual`
 
-[`wfzyx/von`](https://huggingface.co/wfzyx/von) is a ModernBERT-large decision
-model: it reads "A against B" and answers with a probability in one pass (the
-app's main screen turns that probability into Y / N / C). It is this module's
-canonical model in the app (`VonDecisionModel`), because the chat runtime in
-`:llm` cannot run an encoder with a classification head.
+[`convaiinnovations/laya-multilingual`](https://huggingface.co/convaiinnovations/laya-multilingual)
+is a non-autoregressive decision model (mmBERT-base, 322M, 100+ languages): it
+reads "A against B" and answers with a probability in one pass (the app's main
+screen turns that probability into Y / N / C). It is this module's canonical
+model in the app (`LayaDecisionModel`), because the chat runtime in `:llm`
+cannot run an encoder with a decision head.
 
 The Hugging Face repository ships **safetensors**, not a runnable graph, so the
 graph has to come from the same export used for any other classifier:
 
 ```bash
 python export_tokenizer_model.py \
-  --model wfzyx/von \
-  --output build/von-classifier.onnx \
-  --labels build/von-classifier.labels.json \
+  --model convaiinnovations/laya-multilingual \
+  --output build/laya-classifier.onnx \
+  --labels build/laya-classifier.labels.json \
   --int8 \
   --verify
 ```
 
-Copy the result next to the app's downloaded Von files — the app looks for
-`von-classifier.onnx`, `von-classifier.int8.onnx` or `model.onnx` in the same
+Copy the result next to the app's downloaded Laya files — the app looks for
+`laya-classifier.onnx`, `laya-classifier.int8.onnx` or `model.onnx` in the same
 directory as the weights (`/data/data/com.goldmedal.aillm/files/models/`), with
-the optional `von-classifier.labels.json` beside it.
+the optional `laya-classifier.labels.json` beside it.
 
-How the probability is read (`VonDecisionModel`):
+How the probability is read (`LayaDecisionModel`):
 
 | | |
 |---|---|
-| input | `"A [SEP] B"` — the screen's A line judged against B |
-| head | `id2label` from `config.json` — 0 `entailment`, 1 `neutral`, 2 `contradiction` |
-| probability | entailment ÷ (entailment + contradiction) — a strong neutral pulls it toward the C band |
+| input | `"A [SEP] B"` — the screen's A line judged against B, asked as the `noul` question "does B hold of A?" |
+| head | false / true; a two-value head is read at index 1, a single-value head with a sigmoid |
+| probability | P(true) that A holds of B |
 | verdict | `≥ 51%` → Y, `≤ 49%` → N, between → C (Not Clear) |
-| logits | scaled by `temperature` from the authors' `calibration.json` (1.1692) |
+| logits | scaled by `temperature` from the checkpoint's `rl_agent_config.json` |
 
-Without that ONNX file the app still answers, from `VonDecisionRules`
+Without that ONNX file the app still answers, from `LayaDecisionRules`
 (negation / affirmation patterns) — and it labels the result as a fallback
 instead of pretending the weights ran.
 
