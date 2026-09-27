@@ -1,4 +1,4 @@
-# Release build outputs for 198719d560bd9f579cbfef05f294062a0641f4ec
+# Release build outputs for b1aeb9e63748150726acbf0dfae04d71006e2d61
 
 ## find app/build/outputs -name *.apk
 app/build/outputs/apk/debug/app-debug.apk
@@ -11,41 +11,41 @@ app/build/outputs/apk/release/app-release.apk
 ## app/build/outputs/apk tree
 app/build/outputs/apk:
 total 16
-drwxr-xr-x 4 runner runner 4096 Sep 27 06:01 .
-drwxr-xr-x 6 runner runner 4096 Sep 27 06:00 ..
-drwxr-xr-x 2 runner runner 4096 Sep 27 06:01 debug
-drwxr-xr-x 3 runner runner 4096 Sep 27 06:00 release
+drwxr-xr-x 4 runner runner 4096 Sep 27 06:21 .
+drwxr-xr-x 6 runner runner 4096 Sep 27 06:19 ..
+drwxr-xr-x 2 runner runner 4096 Sep 27 06:21 debug
+drwxr-xr-x 3 runner runner 4096 Sep 27 06:20 release
 
 app/build/outputs/apk/debug:
-total 195948
-drwxr-xr-x 2 runner runner      4096 Sep 27 06:01 .
-drwxr-xr-x 4 runner runner      4096 Sep 27 06:01 ..
--rw-r--r-- 1 runner runner 200637961 Sep 27 06:01 app-debug.apk
--rw-r--r-- 1 runner runner       403 Sep 27 06:01 output-metadata.json
+total 195968
+drwxr-xr-x 2 runner runner      4096 Sep 27 06:21 .
+drwxr-xr-x 4 runner runner      4096 Sep 27 06:21 ..
+-rw-r--r-- 1 runner runner 200654945 Sep 27 06:21 app-debug.apk
+-rw-r--r-- 1 runner runner       403 Sep 27 06:21 output-metadata.json
 
 app/build/outputs/apk/release:
-total 189540
-drwxr-xr-x 3 runner runner      4096 Sep 27 06:00 .
-drwxr-xr-x 4 runner runner      4096 Sep 27 06:01 ..
--rw-r--r-- 1 runner runner 194069650 Sep 27 06:00 app-release.apk
-drwxr-xr-x 4 runner runner      4096 Sep 27 06:00 baselineProfiles
--rw-r--r-- 1 runner runner       709 Sep 27 06:00 output-metadata.json
+total 189560
+drwxr-xr-x 3 runner runner      4096 Sep 27 06:20 .
+drwxr-xr-x 4 runner runner      4096 Sep 27 06:21 ..
+-rw-r--r-- 1 runner runner 194086606 Sep 27 06:20 app-release.apk
+drwxr-xr-x 4 runner runner      4096 Sep 27 06:20 baselineProfiles
+-rw-r--r-- 1 runner runner       709 Sep 27 06:20 output-metadata.json
 
 app/build/outputs/apk/release/baselineProfiles:
 total 16
-drwxr-xr-x 4 runner runner 4096 Sep 27 06:00 .
-drwxr-xr-x 3 runner runner 4096 Sep 27 06:00 ..
-drwxr-xr-x 2 runner runner 4096 Sep 27 06:00 0
-drwxr-xr-x 2 runner runner 4096 Sep 27 06:00 1
+drwxr-xr-x 4 runner runner 4096 Sep 27 06:20 .
+drwxr-xr-x 3 runner runner 4096 Sep 27 06:20 ..
+drwxr-xr-x 2 runner runner 4096 Sep 27 06:20 0
+drwxr-xr-x 2 runner runner 4096 Sep 27 06:20 1
 
 app/build/outputs/apk/release/baselineProfiles/0:
 total 24
-drwxr-xr-x 2 runner runner  4096 Sep 27 06:00 .
-drwxr-xr-x 4 runner runner  4096 Sep 27 06:00 ..
--rw-r--r-- 1 runner runner 12435 Sep 27 05:59 app-release.dm
+drwxr-xr-x 2 runner runner  4096 Sep 27 06:20 .
+drwxr-xr-x 4 runner runner  4096 Sep 27 06:20 ..
+-rw-r--r-- 1 runner runner 12431 Sep 27 06:19 app-release.dm
 
 app/build/outputs/apk/release/baselineProfiles/1:
 total 24
-drwxr-xr-x 2 runner runner  4096 Sep 27 06:00 .
-drwxr-xr-x 4 runner runner  4096 Sep 27 06:00 ..
--rw-r--r-- 1 runner runner 12327 Sep 27 05:59 app-release.dm
+drwxr-xr-x 2 runner runner  4096 Sep 27 06:20 .
+drwxr-xr-x 4 runner runner  4096 Sep 27 06:20 ..
+-rw-r--r-- 1 runner runner 12305 Sep 27 06:19 app-release.dm
