@@ -1,4 +1,4 @@
-# AILLM — local-first on-device AI (release v1.4.2)
+# AILLM — local-first on-device AI (release v1.5.0)
 
 **Everything runs on your phone. Nothing leaves the device.**
 
@@ -23,6 +23,9 @@
 - **Generated pictures can leave the app.** Every result now has **Save**
   (into `Pictures/AILLM` via MediaStore — no storage permission on Android 10+)
   and **Share** (into any app through a FileProvider).
+- **A gallery of past generations.** The image screen links to a **Gallery**
+  where every finished generation is kept in the app's database (Room), so
+  results survive restarts and can be reopened at any time.
 - **Lighter and smarter chat models.** **LFM2 1.2B** (0.7 GB) gives strong
   replies at the lowest memory of anything in the library, and **Qwen3 1.7B**
   brings a reasoning-trained assistant into the light tier with thinking
