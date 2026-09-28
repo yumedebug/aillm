@@ -65,6 +65,7 @@ import com.goldmedal.aillm.settings.ui.SettingsScreen
 import com.goldmedal.aillm.settings.ui.StorageScreen
 import com.goldmedal.aillm.ui.decision.DecisionScreen
 import com.goldmedal.aillm.ui.history.HistoryScreen
+import com.goldmedal.aillm.ui.image.GalleryScreen
 import com.goldmedal.aillm.ui.image.ImageScreen
 import com.goldmedal.aillm.ui.models.ModelsScreen
 
@@ -76,6 +77,7 @@ object AppRoutes {
     const val HISTORY = "history"
     const val MODELS = "models"
     const val IMAGE = "image"
+    const val IMAGE_GALLERY = "image/gallery"
     const val SETTINGS = "settings"
     const val MEMORY = "memory"
     const val FILES = "files"
@@ -168,7 +170,15 @@ fun AppNav() {
                 )
             }
             composable(AppRoutes.IMAGE) {
-                ImageScreen(onBack = { navController.popBackStack() })
+                ImageScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenGallery = {
+                        navController.navigate(AppRoutes.IMAGE_GALLERY) { launchSingleTop = true }
+                    }
+                )
+            }
+            composable(AppRoutes.IMAGE_GALLERY) {
+                GalleryScreen(onBack = { navController.popBackStack() })
             }
             composable(AppRoutes.MEMORY) {
                 MemoryScreen(onBack = { navController.popBackStack() })

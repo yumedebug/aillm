@@ -22,7 +22,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -67,6 +71,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun ImageScreen(
     onBack: (() -> Unit)? = null,
+    onOpenGallery: () -> Unit = {},
     viewModel: ImageViewModel = hiltViewModel()
 ) {
     val models = viewModel.models
@@ -142,7 +147,15 @@ fun ImageScreen(
             AillmTopBar(
                 title = "Images",
                 subtitle = "端末内で画像を生成",
-                onBack = onBack
+                onBack = onBack,
+                actions = {
+                    IconButton(onClick = onOpenGallery) {
+                        Icon(
+                            imageVector = Icons.Default.PhotoLibrary,
+                            contentDescription = "Gallery"
+                        )
+                    }
+                }
             )
         }
     ) { padding ->

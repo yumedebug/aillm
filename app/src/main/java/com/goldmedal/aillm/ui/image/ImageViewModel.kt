@@ -1,5 +1,6 @@
 package com.goldmedal.aillm.ui.image
 
+import android.content.Context
 import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -9,7 +10,10 @@ import com.goldmedal.aillm.ai.model.ModelKind
 import com.goldmedal.aillm.ai.model.ModelRepository
 import com.goldmedal.aillm.ai.model.ModelSpec
 import com.goldmedal.aillm.ai.model.ModelStatus
+import com.goldmedal.aillm.core.database.GeneratedImageDao
+import com.goldmedal.aillm.core.database.GeneratedImageEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -37,8 +41,10 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class ImageViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val modelRepository: ModelRepository,
-    private val imageModel: ImageGenerationModel
+    private val imageModel: ImageGenerationModel,
+    private val generatedImageDao: GeneratedImageDao
 ) : ViewModel() {
 
     /** Every image model in the library, fastest first. */
@@ -159,7 +165,7 @@ class ImageViewModel @Inject constructor(
                         return@launch
                     }
                 }
-                imageModel.generateImage(
+                val outcome = imageModel.generateImage(
                     prompt = _prompt.value.trim(),
                     negativePrompt = _negative.value.trim(),
                     width = _size.value,
@@ -167,15 +173,47 @@ class ImageViewModel @Inject constructor(
                     steps = requestedSteps,
                     guidanceScale = spec.defaultGuidance,
                     sampler = spec.sampler
-                ).fold(
-                    onSuccess = { _bitmap.value = it },
-                    onFailure = { cause ->
-                        _error.value = cause.message ?: "The image could not be generated."
-                    }
                 )
+                val image = outcome.getOrNull()
+                if (image == null) {
+                    _error.value = outcome.exceptionOrNull()?.message
+                        ?: "The image could not be generated."
+                } else {
+                    _bitmap.value = image
+                    record(spec, image, requestedSteps)
+                }
             } finally {
                 _generating.value = false
             }
+        }
+    }
+
+    /**
+     * Keeps a finished picture: the pixels in app storage, and the row that
+     * makes them findable in the gallery.
+     *
+     * Failing to record is reported but never discards the image the user just
+     * waited minutes for — it stays on screen either way.
+     */
+    private suspend fun record(spec: ModelSpec, image: Bitmap, steps: Int) {
+        val fileName = GeneratedImageFiles.write(context, image)
+        if (fileName == null) {
+            _error.value = "The picture was generated but could not be kept in the gallery."
+            return
+        }
+        runCatching {
+            generatedImageDao.insert(
+                GeneratedImageEntity(
+                    fileName = fileName,
+                    prompt = _prompt.value.trim(),
+                    negativePrompt = _negative.value.trim(),
+                    modelId = spec.id,
+                    modelName = spec.name,
+                    width = image.width,
+                    height = image.height,
+                    steps = steps
+                )
+            )
         }
     }
 }

@@ -90,6 +90,14 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.compose.animation:animation")
+
+    // Coroutines is pinned to the version the rest of the app already resolves
+    // to, so adding Coil below cannot drag an older one in for this module.
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+
+    // Gallery thumbnails. Coil is already the app's image loader (:chat uses it
+    // for attached photos); the gallery is just the second screen that needs it.
+    implementation("io.coil-kt:coil-compose:2.7.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
 
     // AndroidX
