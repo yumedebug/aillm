@@ -67,8 +67,13 @@ jobs:
       run: |
         set -o pipefail
         if [ -n "$KEYSTORE_BASE64" ]; then
-          echo "$KEYSTORE_BASE64" | base64 -d > /tmp/release.keystore
-          export KEYSTORE_FILE=/tmp/release.keystore
+          if echo "$KEYSTORE_BASE64" | tr -d '[:space:]' | base64 -d > /tmp/release.keystore 2>/tmp/keystore-decode.err; then
+            export KEYSTORE_FILE=/tmp/release.keystore
+            echo "Signing with release keystore from secrets."
+          else
+            echo "::error::KEYSTORE_BASE64 is set but is not valid base64: $(cat /tmp/keystore-decode.err)"
+            exit 1
+          fi
         else
           echo "::warning::KEYSTORE_BASE64 is not set; the APK falls back to debug signing."
         fi
