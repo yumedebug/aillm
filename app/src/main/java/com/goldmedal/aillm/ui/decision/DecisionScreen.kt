@@ -1,6 +1,7 @@
 package com.goldmedal.aillm.ui.decision
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,24 +16,34 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ThumbUp
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.goldmedal.aillm.BuildConfig
+import com.goldmedal.aillm.ai.decision.DecisionOutcome
 import com.goldmedal.aillm.ai.decision.DecisionResult
-import com.goldmedal.aillm.ai.decision.DecisionSource
 import com.goldmedal.aillm.ai.decision.DecisionVerdict
+import com.goldmedal.aillm.ai.decision.LayaQuestionType
 import com.goldmedal.aillm.ai.model.ModelSpec
 import com.goldmedal.aillm.ai.model.ModelStatus
 import com.goldmedal.aillm.core.design.AillmTopBar
@@ -47,9 +58,14 @@ import com.goldmedal.aillm.core.design.formatBytes
 import java.util.Locale
 
 /**
- * The LAYA screen — the app's main screen. Laya is not a chat model: it judges
- * "does A hold of B?" for every A line, one forward pass each, and answers
- * with a probability that becomes Y, N or C. A form, never a conversation.
+ * The LAYA screen — the app's front door.
+ *
+ * Laya is a decision model, not a chat model: the screen is a form. State holds
+ * one item per line (each line is judged independently — lines are never merged
+ * into one state), Question holds the single question asked of all of them, and
+ * Question Type selects the typed primitive. The results list shows Y / N / C
+ * and the calibrated probability for each line, or an explicit failure that can
+ * be retried.
  */
 @Composable
 fun DecisionScreen(
@@ -58,23 +74,32 @@ fun DecisionScreen(
 ) {
     val spec = viewModel.spec
     val status by viewModel.status.collectAsState()
-    val subjects by viewModel.subjects.collectAsState()
-    val context by viewModel.context.collectAsState()
+    val states by viewModel.states.collectAsState()
+    val question by viewModel.question.collectAsState()
+    val questionType by viewModel.questionType.collectAsState()
     val rows by viewModel.rows.collectAsState()
     val error by viewModel.error.collectAsState()
     val running by viewModel.running.collectAsState()
+    val debugEnabled by viewModel.debugEnabled.collectAsState()
 
     val ready = status is ModelStatus.Ready
-    val canJudge = ready && !running &&
-        subjects.isNotBlank() && context.isNotBlank()
+    val canJudge = ready && !running && questionType.isYesNo &&
+        states.isNotBlank() && question.isNotBlank()
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             AillmTopBar(
                 title = "LAYA",
-                subtitle = "AはBか？",
-                onBack = onBack
+                subtitle = "Decision Model",
+                onBack = onBack,
+                actions = {
+                    if (BuildConfig.DEBUG) {
+                        TextButton(onClick = { viewModel.toggleDebug() }) {
+                            Text(if (debugEnabled) "Debug on" else "Debug")
+                        }
+                    }
+                }
             )
         }
     ) { padding ->
@@ -104,13 +129,13 @@ fun DecisionScreen(
             if (ready) {
                 Spacer(Modifier.height(Spacing.md))
 
-                // ---------------------------------------------------- A
-                FieldLabel("A", supporting = "1行に1つ入力してください")
+                // ---------------------------------------------------------- State
+                FieldLabel("State", "1行に1つ。各行が独立した State として判定されます")
                 OutlinedTextField(
-                    value = subjects,
-                    onValueChange = viewModel::onSubjectsChange,
+                    value = states,
+                    onValueChange = viewModel::onStatesChange,
                     placeholder = { Text("東京都\n埼玉県\nカリフォルニア州") },
-                    minLines = 4,
+                    minLines = 3,
                     maxLines = 8,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default),
                     modifier = Modifier
@@ -120,12 +145,12 @@ fun DecisionScreen(
 
                 Spacer(Modifier.height(Spacing.md))
 
-                // ---------------------------------------------------- B
-                FieldLabel("B", supporting = "1行で入力してください")
+                // ------------------------------------------------------- Question
+                FieldLabel("Question", "1行で入力してください")
                 OutlinedTextField(
-                    value = context,
-                    onValueChange = viewModel::onContextChange,
-                    placeholder = { Text("日本のもの") },
+                    value = question,
+                    onValueChange = viewModel::onQuestionChange,
+                    placeholder = { Text("日本のものか？") },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                     modifier = Modifier
@@ -133,10 +158,28 @@ fun DecisionScreen(
                         .padding(horizontal = Spacing.lg)
                 )
 
+                Spacer(Modifier.height(Spacing.md))
+
+                // -------------------------------------------------- Question Type
+                FieldLabel("Question Type", "Laya の typed question")
+                QuestionTypeSelector(
+                    selected = questionType,
+                    ready = !running,
+                    onSelect = viewModel::onQuestionTypeChange
+                )
+                if (!questionType.isYesNo) {
+                    Text(
+                        text = "このビルドでは Noul (Yes / No) のみ対応しています。",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.xs)
+                    )
+                }
+
                 Spacer(Modifier.height(Spacing.lg))
 
                 PrimaryButton(
-                    text = if (running) "判定中…" else "判定",
+                    text = if (running) "Checking…" else "判定する",
                     onClick = { viewModel.judge() },
                     enabled = canJudge,
                     modifier = Modifier
@@ -149,7 +192,7 @@ fun DecisionScreen(
             if (rows.isNotEmpty()) {
                 Spacer(Modifier.height(Spacing.lg))
                 Text(
-                    text = "結果",
+                    text = "Results",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.padding(horizontal = Spacing.lg)
@@ -157,13 +200,11 @@ fun DecisionScreen(
                 Spacer(Modifier.height(Spacing.sm))
                 rows.forEachIndexed { index, row ->
                     ResultRow(
-                        index = index,
-                        row = row
+                        row = row,
+                        debugEnabled = debugEnabled,
+                        onRetry = { viewModel.retry(index) }
                     )
                     Spacer(Modifier.height(Spacing.sm))
-                }
-                if (!running && rows.all { it.state == DecisionViewModel.RowState.DONE }) {
-                    FlowNote()
                 }
             }
 
@@ -205,10 +246,35 @@ private fun FieldLabel(label: String, supporting: String) {
     }
 }
 
-/**
- * The model's state, compressed to what the flow needs: Laya must say Ready
- * before 判定 does anything, and a failure is explained in words.
- */
+@Composable
+private fun QuestionTypeSelector(
+    selected: LayaQuestionType,
+    ready: Boolean,
+    onSelect: (LayaQuestionType) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box(modifier = Modifier.padding(horizontal = Spacing.lg)) {
+        OutlinedButton(
+            onClick = { if (ready) expanded = true },
+            enabled = ready,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(selected.displayName)
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            LayaQuestionType.values().forEach { type ->
+                DropdownMenuItem(
+                    text = { Text(type.displayName) },
+                    onClick = {
+                        onSelect(type)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun ModelStateCard(
     spec: ModelSpec,
@@ -287,7 +353,7 @@ private fun ModelStateCard(
                     )
                     Spacer(Modifier.height(Spacing.xs))
                     Text(
-                        text = "huggingface.co/convaiinnovations/laya-multilingual から直接ダウンロードします。" +
+                        text = "Laya の ONNX グラフ・トークナイザ・較正設定をダウンロードします。" +
                             "推論はすべて端末内で行われ、データは外部に送信されません。",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -305,61 +371,58 @@ private fun ModelStateCard(
 }
 
 /**
- * One judgment. While the batch runs each row shows where it is — Waiting,
- * Checking — and then settles on its verdict and probability.
+ * One judgment. Waiting / Checking while the batch runs, then either the
+ * verdict and its calibrated probability, or an explicit failure with Retry.
  */
 @Composable
 private fun ResultRow(
-    index: Int,
-    row: DecisionViewModel.Row
+    row: DecisionViewModel.Row,
+    debugEnabled: Boolean,
+    onRetry: () -> Unit
 ) {
     GlassPanel(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = Spacing.lg)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = Spacing.lg, vertical = Spacing.md),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = row.subject,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 2
-                )
-                val result = row.result
-                when (row.state) {
-                    DecisionViewModel.RowState.WAITING -> RowHint("Waiting…")
-                    DecisionViewModel.RowState.CHECKING -> RowHint("Checking…")
-                    DecisionViewModel.RowState.DONE -> if (result != null) {
-                        Spacer(Modifier.height(2.dp))
-                        Text(
-                            text = "→ ${result.context} か？",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1
-                        )
-                    }
-                    DecisionViewModel.RowState.FAILED -> RowHint(
-                        row.failure?.message ?: "判定できませんでした"
-                    )
+        Column(modifier = Modifier.padding(Spacing.lg)) {
+            Text(
+                text = row.subject.ifBlank { "(empty)" },
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(Modifier.height(Spacing.xs))
+
+            when (row.state) {
+                DecisionViewModel.RowState.WAITING -> RowHint("Waiting…")
+                DecisionViewModel.RowState.CHECKING -> RowHint("Checking…")
+                DecisionViewModel.RowState.DONE -> {
+                    val answered = row.outcome as? DecisionOutcome.Answered
+                    if (answered != null) VerdictView(answered.result)
                 }
+                DecisionViewModel.RowState.FAILED -> FailedView(row, onRetry)
             }
 
-            val result = row.result
-            when {
-                row.state == DecisionViewModel.RowState.DONE && result != null ->
-                    VerdictView(result)
-                row.state == DecisionViewModel.RowState.FAILED ->
-                    StatusBadge("Error", BadgeTone.ERROR)
-                row.state == DecisionViewModel.RowState.CHECKING ->
-                    StatusBadge("Checking", BadgeTone.ACCENT)
-                else ->
-                    StatusBadge("Waiting", BadgeTone.NEUTRAL)
+            if (debugEnabled) {
+                val answered = row.outcome as? DecisionOutcome.Answered
+                if (answered != null) {
+                    Spacer(Modifier.height(Spacing.sm))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    Spacer(Modifier.height(Spacing.sm))
+                    DebugView(answered.result)
+                } else {
+                    val failed = row.outcome as? DecisionOutcome.Failed
+                    if (failed != null) {
+                        Spacer(Modifier.height(Spacing.sm))
+                        Text(
+                            text = "error: ${failed.failure.kind.name}" +
+                                (failed.failure.detail?.let { " · $it" } ?: ""),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontFamily = FontFamily.Monospace,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
             }
         }
     }
@@ -369,7 +432,7 @@ private fun ResultRow(
 private fun RowHint(text: String) {
     Text(
         text = text,
-        style = MaterialTheme.typography.labelSmall,
+        style = MaterialTheme.typography.labelMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant
     )
 }
@@ -379,7 +442,7 @@ private fun VerdictView(result: DecisionResult) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
             text = result.verdict.name,
-            fontSize = 24.sp,
+            fontSize = 30.sp,
             fontWeight = FontWeight.Bold,
             color = when (result.verdict) {
                 DecisionVerdict.Y -> MaterialTheme.colorScheme.primary
@@ -387,49 +450,64 @@ private fun VerdictView(result: DecisionResult) {
                 DecisionVerdict.C -> MaterialTheme.colorScheme.tertiary
             }
         )
-        Spacer(Modifier.width(Spacing.sm))
+        Spacer(Modifier.width(Spacing.md))
         Column {
             Text(
-                text = when (result.verdict) {
-                    DecisionVerdict.Y -> "Yes"
-                    DecisionVerdict.N -> "No"
-                    DecisionVerdict.C -> "Not Clear"
-                },
-                style = MaterialTheme.typography.labelMedium,
+                text = String.format(Locale.US, "%.1f%%", result.probability * 100f),
+                style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
-                text = "%.1f%%".format(Locale.US, result.probability * 100f),
-                style = MaterialTheme.typography.labelMedium,
+                text = when (result.verdict) {
+                    DecisionVerdict.Y -> "P(true) ≥ 51%"
+                    DecisionVerdict.N -> "P(true) ≤ 49%"
+                    DecisionVerdict.C -> "Not clear (49–51%)"
+                },
+                style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-        }
-        Spacer(Modifier.width(Spacing.sm))
-        if (result.source == DecisionSource.HEURISTIC) {
-            StatusBadge("Fallback", BadgeTone.WARNING)
         }
     }
 }
 
-/**
- * The pipeline the finished list represents, spelled out once:
- * A ↓ Laya ↓ Bとの成立確率 ↓ Y/N/C.
- */
 @Composable
-private fun FlowNote() {
-    GlassPanel(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = Spacing.lg)
-    ) {
+private fun FailedView(row: DecisionViewModel.Row, onRetry: () -> Unit) {
+    val failed = row.outcome as? DecisionOutcome.Failed
+    Column {
         Text(
-            text = "A ↓ Laya ↓ Bとの成立確率 ↓ Y / N / C",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(Spacing.md)
+            text = failed?.failure?.kind?.displayMessage ?: "判定できませんでした",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.error
         )
+        Spacer(Modifier.height(Spacing.xs))
+        TextButton(onClick = onRetry) { Text("Retry") }
+    }
+}
+
+/** The debug view: proof that one judgment followed Laya's real pipeline. */
+@Composable
+private fun DebugView(result: DecisionResult) {
+    val debug = result.debug
+    val lines = listOf(
+        "Question Type: ${debug.questionType.key}",
+        "qtype: ${debug.qtype}",
+        "State: ${debug.subject}",
+        "Question: ${debug.question}",
+        "marker_pos: ${debug.markerPos}",
+        "raw logits: ${debug.rawLogits}",
+        "temperature: ${debug.temperature} (config ${debug.temperatureConfig})",
+        "P(false): ${debug.probabilities.getOrNull(0)}",
+        "P(true): ${debug.probabilities.getOrNull(1)}",
+        "final: ${result.verdict.name}"
+    )
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        lines.forEach { line ->
+            Text(
+                text = line,
+                style = MaterialTheme.typography.labelSmall,
+                fontFamily = FontFamily.Monospace,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }

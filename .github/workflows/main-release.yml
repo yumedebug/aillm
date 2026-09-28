@@ -1,0 +1,125 @@
+name: Main Release
+
+# Every push to `main` builds a signed release APK and republishes the rolling
+# `main-latest` pre-release on GitHub Releases, so the tip of main is always
+# installable without cutting a version tag. Stable releases stay on the `v*`
+# channel (release.yml).
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: main-release
+  cancel-in-progress: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    # The :llm and :diffusion modules compile llama.cpp and
+    # stable-diffusion.cpp from source (NDK + CMake), which is the slow part.
+    timeout-minutes: 180
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v4
+      with:
+        gradle-version: '9.1.0'
+
+    - name: Install NDK and CMake
+      run: |
+        SDKMANAGER="${ANDROID_HOME:-/usr/local/lib/android/sdk}/cmdline-tools/latest/bin/sdkmanager"
+        if [ ! -x "$SDKMANAGER" ]; then
+          SDKMANAGER="$(find "${ANDROID_HOME:-/usr/local/lib/android/sdk}" -name sdkmanager -type f 2>/dev/null | head -n 1)"
+        fi
+        yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
+        "$SDKMANAGER" "ndk;27.2.12479018" "cmake;3.22.1"
+
+    - name: Cache native build
+      uses: actions/cache@v4
+      with:
+        path: |
+          llm/.cxx
+          diffusion/.cxx
+        key: native-${{ runner.os }}-${{ hashFiles('llm/src/main/cpp/**', 'llm/build.gradle.kts', 'diffusion/src/main/cpp/**', 'diffusion/build.gradle.kts') }}
+        restore-keys: |
+          native-${{ runner.os }}-
+
+    - name: Build signed release APK
+      env:
+        KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+      run: |
+        set -o pipefail
+        if [ -n "$KEYSTORE_BASE64" ]; then
+          echo "$KEYSTORE_BASE64" | base64 -d > /tmp/release.keystore
+          export KEYSTORE_FILE=/tmp/release.keystore
+        else
+          echo "::warning::KEYSTORE_BASE64 is not set; the APK falls back to debug signing."
+        fi
+        ./gradlew assembleRelease --no-daemon --stacktrace
+
+    - name: Rename APK
+      run: |
+        APK=$(find app/build/outputs/apk/release -name '*.apk' | head -n 1)
+        if [ -z "$APK" ]; then
+          echo "No release APK found in app/build/outputs/apk/release"
+          exit 1
+        fi
+        VERSION=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts | head -n 1)
+        SHORT_SHA="${GITHUB_SHA::7}"
+        cp "$APK" "AILLM-main-${VERSION}-${SHORT_SHA}.apk"
+
+    - name: Delete previous rolling release
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh release delete main-latest --yes --cleanup-tag 2>/dev/null || true
+
+    - name: Publish rolling main-latest release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: main-latest
+        name: Latest main build
+        target_commitish: ${{ github.sha }}
+        body: |
+          ## AILLM — latest `main` build (auto-deployed)
+
+          Signed release APK built from the tip of `main`
+          (commit ${{ github.sha }}).
+
+          This rolling pre-release is replaced on every push to `main`.
+          Stable, versioned releases stay on the `AILLM v*` channel.
+
+          ### Install
+          Download the APK below and install it on your device.
+          Allow installation from unknown sources.
+        files: AILLM-main-*.apk
+        fail_on_unmatched_files: true
+        prerelease: true
+        draft: false
+        make_latest: false
+        generate_release_notes: false
+
+    - name: Upload APK artifact
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: aillm-main-release-apk
+        path: app/build/outputs/apk/release/*.apk
+        retention-days: 30

@@ -215,61 +215,65 @@ app.
 request, a complaint, a complaint about a refund?" — is a *sequence
 classification* model, and those run on ONNX Runtime instead.
 
-Implementing a Hugging Face tokenizer in Kotlin is the part that makes this
-painful, so it is not done at all: `onnx/export/export_tokenizer_model.py`
-converts the tokenizer to ONNX custom operators with
-`onnxruntime-extensions` and merges it into the model graph, producing a single
-file whose input is `tensor(string)` and whose output is Float logits.
-`StringOnnxClassifier` then feeds it text and returns scores, registering the
-extensions library so the tokenizer node resolves. See [`onnx/README.md`](onnx/README.md)
-for the export command and the Kotlin usage.
+Laya does not need a chat runtime, and it does not need a Python-side tokenizer
+conversion either: `:onnx` ships a small pure-Kotlin BPE tokenizer
+(`LayaTokenizer`) that reads a Hugging Face `tokenizer.json` directly, and feeds
+its `input_ids` into the model's own ONNX graph on ONNX Runtime. See
+[`onnx/README.md`](onnx/README.md) for the exact input contract.
 
 ### Decision AI — `convaiinnovations/laya-multilingual` (the LAYA screen)
 
 Laya is not a chat model and is not treated as one. It is a **non-autoregressive**
-mmBERT-base (322M) with a decision head trained from scratch: it judges whether
-"A holds of B" in a single encoder pass and answers with a **probability** — no
-generation, no prose, no conversation. It runs on the `:onnx` runtime. The
-multilingual checkpoint is used because it covers 100+ languages, so a Japanese
-pair is judged on the model's own terms rather than by a fallback.
+mmBERT-base (322M) with a decision head trained from scratch: it tokenizes a
+structured prompt, scores one `[MASK]` marker per answer option, and returns a
+probability over those options — no generation, no prose, no conversation. It
+runs on the `:onnx` runtime, never through llama.cpp. The multilingual
+checkpoint is used because it covers 100+ languages.
 
 The **LAYA screen is the app's main screen** (the first bottom-bar destination),
 built for one job, in the shape of a form:
 
-- **A** — one subject per line (multi-line, scrollable): `東京都` / `埼玉県` /
-  `カリフォルニア州`…
-- **B** — one line: `日本のもの`
-- **判定** — walks each A line through Laya independently: `A → B か？`, and
-  fills the result list in progressively (`Waiting… → Checking… → verdict`).
+- **State** — one item per line. Each line becomes its **own** decision; lines
+  are never joined into one state.
+- **Question** — one line, asked of every state: `日本のものか？`
+- **Question Type** — the typed primitive. This build uses `noul`
+  (`qtype = 2`), Laya's two-option false/true question.
+- **判定する** — every state is judged against the question in **one forward
+  pass** (`Checking… → Y 98.7%`).
 
-Each verdict is cut from the probability alone:
+What actually happens per decision:
 
 ```
-probability >= 51%          -> Y
-probability <= 49%          -> N
-49% < probability < 51%     -> C (Not Clear)
+State / Question
+  -> Laya prompt construction      [CLS] <type> question: <instructions> [SEP]
+                                    [MASK] option0 [MASK] option1 [SEP] <state> [SEP]
+  -> mmBERT BPE tokenizer          tokenizer.json, pure Kotlin
+  -> input_ids / attention_mask / marker_pos / marker_mask / qtype
+  -> ONNX Runtime                  one logit per option marker
+  -> temperature calibration       rl_agent_config.json, clamped to [0.5, 5.0]
+  -> softmax -> P(true)
+  -> Y / N / C                     P(true) >= 51% / <= 49% / between
 ```
 
-and the list — one row per A — is the pipeline made visible:
-`A ↓ Laya ↓ Bとの成立確率 ↓ Y / N / C`.
+The verdict is cut from the calibrated probability alone; **C is the app's own
+"not clear" band, never a character Laya generated**. The debug mode (debug
+builds only) prints `qtype`, `marker_pos`, raw logits, the temperature, and
+`P(false)` / `P(true)` for each row.
 
-- The catalogue entry downloads the real files from
-  [`convaiinnovations/laya-multilingual`](https://huggingface.co/convaiinnovations/laya-multilingual)
-  — the weights, the encoder's `config.json`, the tokenizer and the
-  checkpoint's `rl_agent_config.json`.
-- Since the repository ships safetensors rather than an executable graph, the
-  ONNX export from `onnx/export` is what actually runs: the graph is asked the
-  `noul` question "does B hold of A?" and the head is read as P(true), with the
-  checkpoint's temperature applied.
+- The catalogue entry downloads the files that can actually execute: an ONNX
+export of the same Apache-2.0 weights whose five inputs are `input_ids`,
+`attention_mask`, `marker_pos`, `marker_mask` and `qtype`, plus `tokenizer.json`,
+`tokenizer_config.json` and the checkpoint's `rl_agent_config.json`.
 - Laya **loads automatically at app start** (`Loading Laya…` → `Laya Ready`), and
-  the 判定 button is disabled until the model is Ready. A load error is shown
+  the 判定する button is disabled until the model is Ready. A load error is shown
   in words, with the way out (re-download from Models).
 - Laya is loaded **alone**: loading Laya unloads any resident chat model and
   loading a chat model unloads Laya — the two runtimes never sit in memory
-  together, and no second model is ever loaded alongside Laya.
-- Until the export is present — or if a verdict cannot be read — the built-in
-  lexical fallback answers, and the row says `Fallback` instead of `Laya`,
-  rather than passing a guess off as the model's.
+  together.
+- There is **no heuristic fallback**. If the tokenizer, the graph or the logits
+  cannot produce a valid probability, the row shows an explicit
+  `判定できませんでした` state with a **Retry** button instead of a guess, and `??`
+  is never presented as an answer.
 
 ### Web search (no API, no key)
 
@@ -312,6 +316,14 @@ Local builds are intentionally avoided. Everything is built by GitHub Actions:
   `main`.
 - **Release** (`.github/workflows/release.yml`) is triggered by a `v*` tag and
   publishes the APK to GitHub Releases.
+- **Main release** (`.github/workflows/main-release.yml`) runs on every push to
+  `main` (and manually via `workflow_dispatch`) and republishes the rolling
+  [`main-latest`](https://github.com/yumedebug/aillm/releases/tag/main-latest)
+  pre-release with a signed release APK, so the tip of `main` is always
+  installable without cutting a tag. If `KEYSTORE_BASE64` (plus
+  `KEYSTORE_PASSWORD` / `KEY_ALIAS` / `KEY_PASSWORD`) is configured as a secret
+  the APK is signed with the release keystore; otherwise it falls back to debug
+  signing.
 
 Both workflows install NDK `27.2.12479018` and CMake `3.22.1` and cache
 `llm/.cxx`. Compiling llama.cpp for two ABIs is the slow part of the job, so

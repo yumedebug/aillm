@@ -348,6 +348,12 @@ object ModelCatalog {
         ),
 
         // ------------------------------------------------------------ Decision
+        // Laya is not run from its safetensors checkpoint: the app executes an
+        // ONNX export whose five inputs are input_ids, attention_mask,
+        // marker_pos, marker_mask and qtype. The upstream repository ships only
+        // safetensors, so this entry points at a compatible export of the same
+        // Apache-2.0 weights. The downloader stores every file flat, so the
+        // tokenizer files keep their leaf names.
         ModelSpec(
             id = LAYA_MODEL_ID,
             name = "Laya Multilingual",
@@ -355,32 +361,24 @@ object ModelCatalog {
             kind = ModelKind.DECISION,
             parameters = "322M",
             quantization = "F16",
-            fileName = "model.safetensors",
-            downloadUrl = "https://huggingface.co/convaiinnovations/laya-multilingual/resolve/main/model.safetensors",
-            sizeBytes = 643_835_514L,
-            // The repository keeps the encoder config under `encoder/` and the
-            // tokenizer under `tokenizer/`; the downloader stores everything
-            // flat, so each file is named after its leaf.
+            fileName = "model.onnx",
+            downloadUrl = "https://huggingface.co/mizchi/laya-multilingual-onnx/resolve/main/model.onnx",
+            sizeBytes = 646_870_871L,
             auxiliaryFiles = listOf(
                 ModelFile(
-                    fileName = "config.json",
-                    url = "https://huggingface.co/convaiinnovations/laya-multilingual/resolve/main/encoder/config.json",
-                    sizeBytes = 1_938L
-                ),
-                ModelFile(
                     fileName = "tokenizer.json",
-                    url = "https://huggingface.co/convaiinnovations/laya-multilingual/resolve/main/tokenizer/tokenizer.json",
+                    url = "https://huggingface.co/mizchi/laya-multilingual-onnx/resolve/main/tokenizer/tokenizer.json",
                     sizeBytes = 34_363_188L
                 ),
                 ModelFile(
                     fileName = "tokenizer_config.json",
-                    url = "https://huggingface.co/convaiinnovations/laya-multilingual/resolve/main/tokenizer/tokenizer_config.json",
-                    sizeBytes = 502L
+                    url = "https://huggingface.co/mizchi/laya-multilingual-onnx/resolve/main/tokenizer/tokenizer_config.json",
+                    sizeBytes = 524L
                 ),
                 ModelFile(
                     fileName = "rl_agent_config.json",
-                    url = "https://huggingface.co/convaiinnovations/laya-multilingual/resolve/main/rl_agent_config.json",
-                    sizeBytes = 472L
+                    url = "https://huggingface.co/mizchi/laya-multilingual-onnx/resolve/main/rl_agent_config.json",
+                    sizeBytes = 473L
                 )
             ),
             minRamBytes = 6 * GB,
@@ -388,8 +386,8 @@ object ModelCatalog {
             contextLength = 1024,
             speedRating = 4,
             qualityRating = 4,
-            description = "Judges a proposition Yes or No in 100+ languages rather " +
-                "than chatting. One pass, no prose.",
+            description = "Judges a typed question Yes or No in 100+ languages " +
+                "rather than chatting. One forward pass, no prose.",
             tags = listOf("decision", "yes/no", "multilingual")
         ),
 

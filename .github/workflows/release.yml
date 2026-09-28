@@ -7,9 +7,8 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag version"
-        required: false
-        default: ""
+        description: "Existing v* tag to publish (required when running manually)"
+        required: true
 
 jobs:
   release:
@@ -97,7 +96,7 @@ jobs:
     - name: Determine release tag
       id: tag
       run: |
-        if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.tag }}" ]; then
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
           echo "tag=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
         else
           echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT

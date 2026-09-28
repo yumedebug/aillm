@@ -35,11 +35,10 @@ dependencies {
     // already speaks (:ai), so it plugs into the model repository unchanged.
     implementation(project(":ai"))
 
-    // Inference runtime. onnxruntime-extensions is a companion AAR that adds
-    // the custom operators the exported tokenizer graph depends on; without it
-    // the session fails to load with "Unknown operator BertTokenizer".
+    // Inference runtime. Laya's graph is a standard-operator encoder + decision
+    // head, so the extensions AAR (custom tokenizer operators) is not needed:
+    // tokenization happens in Kotlin, and the graph takes input_ids directly.
     implementation("com.microsoft.onnxruntime:onnxruntime-android:1.20.0")
-    implementation("com.microsoft.onnxruntime:onnxruntime-extensions-android:0.13.0")
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation("androidx.core:core-ktx:1.15.0")

@@ -2,9 +2,12 @@ package com.goldmedal.aillm.ui.decision
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.goldmedal.aillm.ai.decision.DecisionFailure
+import com.goldmedal.aillm.ai.decision.DecisionFailureKind
 import com.goldmedal.aillm.ai.decision.DecisionModel
-import com.goldmedal.aillm.ai.decision.DecisionResult
+import com.goldmedal.aillm.ai.decision.DecisionOutcome
 import com.goldmedal.aillm.ai.decision.LAYA_MODEL_ID
+import com.goldmedal.aillm.ai.decision.LayaQuestionType
 import com.goldmedal.aillm.ai.model.ModelRepository
 import com.goldmedal.aillm.ai.model.ModelSpec
 import com.goldmedal.aillm.ai.model.ModelStatus
@@ -20,18 +23,15 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
- * The LAYA screen's state: one batch of judgments.
+ * The LAYA screen's state: a batch of decisions.
  *
- * A is entered as multiple lines — one subject per line — and B as one line.
- * Pressing 判定 walks the A lines one at a time through Laya: "A → B か？".
- * Each row moves through Checking → verdict + probability on its own, so the
- * list fills in progressively.
+ * State is entered one line per item, so every line becomes its *own* Laya
+ * decision — the lines are never joined into one state. Question is the single
+ * question asked of all of them, and Question Type selects the typed primitive
+ * (noul for Yes/No).
  *
- * Model status comes from [ModelRepository] rather than the engine directly,
- * so this screen and the Models library never disagree about what is installed
- * or resident. Laya loads automatically at app start (see
- * `ModelRepositoryImpl.autoLoadDecisionModel`); this view model only ever needs
- * to react.
+ * Model status comes from [ModelRepository] rather than the engine directly, so
+ * this screen and the Models library never disagree about what is installed.
  */
 @HiltViewModel
 class DecisionViewModel @Inject constructor(
@@ -39,7 +39,6 @@ class DecisionViewModel @Inject constructor(
     private val decisionModel: DecisionModel
 ) : ViewModel() {
 
-    /** The Laya entry, as described in the catalogue. */
     val spec: ModelSpec? = modelRepository.spec(LAYA_MODEL_ID)
 
     val status: StateFlow<ModelStatus> = modelRepository.states
@@ -50,11 +49,14 @@ class DecisionViewModel @Inject constructor(
             initialValue = modelRepository.status(LAYA_MODEL_ID)
         )
 
-    private val _subjects = MutableStateFlow("")
-    val subjects: StateFlow<String> = _subjects.asStateFlow()
+    private val _states = MutableStateFlow("")
+    val states: StateFlow<String> = _states.asStateFlow()
 
-    private val _context = MutableStateFlow("")
-    val context: StateFlow<String> = _context.asStateFlow()
+    private val _question = MutableStateFlow("")
+    val question: StateFlow<String> = _question.asStateFlow()
+
+    private val _questionType = MutableStateFlow(LayaQuestionType.NOUL)
+    val questionType: StateFlow<LayaQuestionType> = _questionType.asStateFlow()
 
     private val _rows = MutableStateFlow<List<Row>>(emptyList())
     val rows: StateFlow<List<Row>> = _rows.asStateFlow()
@@ -65,16 +67,16 @@ class DecisionViewModel @Inject constructor(
     private val _running = MutableStateFlow(false)
     val running: StateFlow<Boolean> = _running.asStateFlow()
 
+    private val _debugEnabled = MutableStateFlow(false)
+    val debugEnabled: StateFlow<Boolean> = _debugEnabled.asStateFlow()
+
+    /** One state line and what Laya made of it. */
     data class Row(
         val subject: String,
         val state: RowState,
-        /** The verdict, once [RowState.DONE]. */
-        val result: DecisionResult? = null,
-        /** Why the row failed, once [RowState.FAILED]. */
-        val failure: Throwable? = null
+        val outcome: DecisionOutcome? = null
     )
 
-    /** The per-row lifecycle behind the Checking… / Waiting… display. */
     enum class RowState { WAITING, CHECKING, DONE, FAILED }
 
     init {
@@ -90,12 +92,20 @@ class DecisionViewModel @Inject constructor(
         }
     }
 
-    fun onSubjectsChange(value: String) {
-        if (!_running.value) _subjects.value = value
+    fun onStatesChange(value: String) {
+        if (!_running.value) _states.value = value
     }
 
-    fun onContextChange(value: String) {
-        if (!_running.value) _context.value = value
+    fun onQuestionChange(value: String) {
+        if (!_running.value) _question.value = value
+    }
+
+    fun onQuestionTypeChange(value: LayaQuestionType) {
+        if (!_running.value) _questionType.value = value
+    }
+
+    fun toggleDebug() {
+        _debugEnabled.update { !it }
     }
 
     fun clearError() {
@@ -112,45 +122,79 @@ class DecisionViewModel @Inject constructor(
         modelRepository.cancelDownload(spec.id)
     }
 
-    /**
-     * Judges every non-blank A line against B, sequentially.
-     *
-     * Rows are re-created from the current input at press time; editing is
-     * locked while the batch runs. Any line that fails is shown as FAILED
-     * rather than aborting the rest of the batch.
-     */
+    /** Judges every non-blank State line against the Question in one batch. */
     fun judge() {
         if (_running.value) return
-        val b = _context.value.trim()
-        val subjects = _subjects.value.lines().map { it.trim() }.filter { it.isNotEmpty() }
-        if (subjects.isEmpty() || b.isEmpty()) return
+        val type = _questionType.value
+        val question = _question.value.trim()
+        val subjects = _states.value.lines().map { it.trim() }.filter { it.isNotEmpty() }
+        if (subjects.isEmpty() || question.isEmpty()) return
 
         _rows.value = subjects.map { Row(it, RowState.WAITING) }
         _error.value = null
         _running.value = true
+        runBatch(subjects, question, type)
+    }
 
+    /** Re-runs a single failed row, leaving the rest of the batch untouched. */
+    fun retry(index: Int) {
+        if (_running.value) return
+        val row = _rows.value.getOrNull(index) ?: return
+        val question = _question.value.trim()
+        if (question.isEmpty()) return
+        _running.value = true
+        runBatch(listOf(row.subject), question, _questionType.value, indices = listOf(index))
+    }
+
+    private fun runBatch(
+        subjects: List<String>,
+        question: String,
+        type: LayaQuestionType,
+        indices: List<Int> = subjects.indices.toList()
+    ) {
         viewModelScope.launch {
             try {
-                subjects.forEachIndexed { index, subject ->
-                    updateRow(index) { it.copy(state = RowState.CHECKING) }
-                    decisionModel.decide(subject, b).fold(
-                        onSuccess = { result ->
-                            updateRow(index) { it.copy(state = RowState.DONE, result = result) }
-                        },
-                        onFailure = { cause ->
-                            updateRow(index) { it.copy(state = RowState.FAILED, failure = cause) }
+                markChecking(indices)
+                decisionModel.decide(subjects, question, type).fold(
+                    onSuccess = { outcomes ->
+                        outcomes.forEachIndexed { offset, outcome ->
+                            val index = indices.getOrElse(offset) { offset }
+                            updateRow(index) {
+                                it.copy(
+                                    state = if (outcome is DecisionOutcome.Answered) RowState.DONE else RowState.FAILED,
+                                    outcome = outcome
+                                )
+                            }
                         }
-                    )
-                }
+                    },
+                    onFailure = { cause ->
+                        // An engine-level failure: every row shows the explicit
+                        // error state rather than a substituted verdict.
+                        _error.value = cause.message
+                        indices.forEach { index ->
+                            updateRow(index) { row ->
+                                row.copy(
+                                    state = RowState.FAILED,
+                                    outcome = DecisionOutcome.Failed(
+                                        row.subject,
+                                        DecisionFailure(DecisionFailureKind.MODEL_NOT_LOADED, cause.message)
+                                    )
+                                )
+                            }
+                        }
+                    }
+                )
             } finally {
                 _running.value = false
             }
         }
     }
 
+    private fun markChecking(indices: List<Int>) {
+        indices.forEach { index -> updateRow(index) { it.copy(state = RowState.CHECKING) } }
+    }
+
     private fun updateRow(index: Int, change: (Row) -> Row) {
-        _rows.update { rows ->
-            rows.mapIndexed { i, row -> if (i == index) change(row) else row }
-        }
+        _rows.update { rows -> rows.mapIndexed { i, row -> if (i == index) change(row) else row } }
     }
 }
